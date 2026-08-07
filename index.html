@@ -28,6 +28,7 @@
       <input type="email" id="loginEmail" class="search-input" placeholder="Adresse email" autocomplete="email">
       <input type="password" id="loginPassword" class="search-input" placeholder="Mot de passe" autocomplete="current-password">
       <div id="authError" class="auth-error"></div>
+      <div id="loginCaptcha" class="h-captcha-row hidden"></div>
       <button type="submit" class="btn-primary auth-submit">Se connecter</button>
       <button type="button" id="btnForgot" class="link-btn">Mot de passe oublié ?</button>
     </form>
@@ -38,13 +39,7 @@
       <input type="password" id="signupPassword" class="search-input" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
       <input type="password" id="signupPassword2" class="search-input" placeholder="Confirmer le mot de passe" autocomplete="new-password">
       <div id="signupError" class="auth-error"></div>
-
-      <div class="captcha-box">
-        <span id="captchaQuestion" class="captcha-question"></span>
-        <input type="text" id="captchaAnswer" class="search-input captcha-input" inputmode="numeric" placeholder="Résultat *" autocomplete="off">
-        <button type="button" id="btnCaptchaNew" class="link-btn" title="Changer la question">&#128260;</button>
-        <span id="captchaMsg" class="captcha-msg"></span>
-      </div>
+      <div id="signupCaptcha" class="h-captcha-row hidden"></div>
 
       <button type="submit" class="btn-primary auth-submit" id="signupBtn">Créer mon compte</button>
       <div id="signupStatus" class="auth-status"></div>
@@ -190,6 +185,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="qrcode.min.js"></script>
+<script src="https://hcaptcha.com/1/api.js?render=explicit&onload=hcaptchaOnload" async defer></script>
 
 <!-- ============ MODULE AUTHENTIFICATION (autonome, ne dépend pas d'app.js) ============ -->
 <script>
@@ -232,6 +228,7 @@
     if (str.indexOf('at least 6 characters') > -1) return 'Le mot de passe doit contenir au moins 6 caractères.';
     if (str.indexOf('Email not confirmed') > -1) return 'Vous devez encore confirmer votre email (lien reçu par email).';
     if (str.indexOf('Too many requests') > -1 || str.indexOf('rate limit') > -1) return 'Trop de tentatives — patientez un instant.';
+    if (str.indexOf('captcha') > -1 || str.indexOf('CAPTCHA') > -1) return 'Case anti-robot invalide ou expirée — cochez-la à nouveau.';
     if (str.indexOf('Failed to fetch') > -1 || str.indexOf('fetch') > -1) return 'Pas de connexion internet. Vérifiez votre réseau.';
     return str;
   }
@@ -246,8 +243,10 @@
     if (ln) ln.classList.toggle('hidden', form !== 'login');
     if (sn) sn.classList.toggle('hidden', form !== 'signup');
     if (form === 'signup' && sn) {
-      genCaptcha();
+      ensureCaptcha('signup');
       sn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (form === 'login' && ln) {
+      ensureCaptcha('login');
     }
   }
   document.addEventListener('click', function (e) {
@@ -255,21 +254,50 @@
     if (tab) switchTab(tab.dataset.form);
   });
 
-  /* ---------- Captcha ---------- */
-  var captchaA = 0, captchaB = 0;
-  function genCaptcha() {
-    captchaA = 1 + Math.floor(Math.random() * 9);
-    captchaB = 1 + Math.floor(Math.random() * 9);
-    var q = document.getElementById('captchaQuestion');
-    if (q) q.textContent = 'Anti-robot : combien font ' + captchaA + ' + ' + captchaB + ' ?';
-    var a = document.getElementById('captchaAnswer');
-    if (a) a.value = '';
-    var m = document.getElementById('captchaMsg');
-    if (m) m.textContent = '';
+  /* ---------- hCaptcha (anti-robot, vérifié par Supabase) ---------- */
+  var HCAPTCHA_FALLBACK = typeof HCAPTCHA_SITE_KEY !== 'string' || HCAPTCHA_SITE_KEY.length < 20;
+  var loginWidgetId = null, signupWidgetId = null;
+  var loginRendered = false, signupRendered = false;
+
+  function renderHcaptcha(containerId) {
+    if (HCAPTCHA_FALLBACK || !window.hcaptcha) return null;
+    try {
+      var el = document.getElementById(containerId);
+      if (!el) return null;
+      el.classList.remove('hidden');
+      return hcaptcha.render(el, { sitekey: HCAPTCHA_SITE_KEY });
+    } catch (e) { return null; }
   }
-  var btnNew = document.getElementById('btnCaptchaNew');
-  if (btnNew) btnNew.addEventListener('click', genCaptcha);
-  genCaptcha();
+
+  function ensureCaptcha(form) {
+    if (HCAPTCHA_FALLBACK) return;
+    if (form === 'signup' && !signupRendered) {
+      signupWidgetId = renderHcaptcha('signupCaptcha');
+      if (signupWidgetId !== null) signupRendered = true;
+    } else if (form === 'login' && !loginRendered) {
+      loginWidgetId = renderHcaptcha('loginCaptcha');
+      if (loginWidgetId !== null) loginRendered = true;
+    }
+  }
+
+  function getCaptchaToken(form) {
+    if (HCAPTCHA_FALLBACK || !window.hcaptcha) return '';
+    var id = form === 'login' ? loginWidgetId : signupWidgetId;
+    if (id === null || id === undefined) return '';
+    try { return hcaptcha.getResponse(id) || ''; } catch (e) { return ''; }
+  }
+
+  function resetCaptcha(form) {
+    if (HCAPTCHA_FALLBACK || !window.hcaptcha) return;
+    var id = form === 'login' ? loginWidgetId : signupWidgetId;
+    if (id === null || id === undefined) return;
+    try { hcaptcha.reset(id); } catch (e) {}
+  }
+
+  window.hcaptchaOnload = function () {
+    ensureCaptcha('signup');
+    ensureCaptcha('login');
+  };
 
   /* ---------- Connexion ---------- */
   var loginForm = document.getElementById('loginForm');
@@ -281,10 +309,16 @@
       var password = document.getElementById('loginPassword').value;
       if (!email || !password) { msg('authError', 'Remplissez tous les champs.', 'error'); return; }
       if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
-      window.__supabase.auth.signInWithPassword({ email: email, password: password })
-        .then(function (res) {
-          if (res.error) msg('authError', frErr(res.error), 'error');
-        });
+      ensureCaptcha('login');
+      var token = getCaptchaToken('login');
+      if (!HCAPTCHA_FALLBACK && !token) { msg('authError', 'Cochez la case anti-robot puis réessayez.', 'error'); return; }
+      window.__supabase.auth.signInWithPassword({
+        email: email, password: password,
+        options: { captchaToken: token || undefined }
+      }).then(function (res) {
+        resetCaptcha('login');
+        if (res.error) msg('authError', frErr(res.error), 'error');
+      });
     });
   }
 
@@ -298,17 +332,15 @@
       var email = document.getElementById('signupEmail').value.trim();
       var password = document.getElementById('signupPassword').value;
       var password2 = document.getElementById('signupPassword2').value;
-      var answer = parseInt(document.getElementById('captchaAnswer').value, 10);
 
       if (!email) { msg('signupError', 'Renseignez votre adresse email.', 'error'); return; }
       if (password.length < 6) { msg('signupError', 'Le mot de passe doit contenir au moins 6 caractères.', 'error'); return; }
       if (password !== password2) { msg('signupError', 'Les mots de passe ne correspondent pas.', 'error'); return; }
-      if (isNaN(answer) || answer !== captchaA + captchaB) {
-        msg('signupError', 'Réponse du captcha incorrecte — recommencez.', 'error');
-        genCaptcha();
-        return;
-      }
       if (!window.__supabase) { msg('signupError', makeError(), 'error'); return; }
+
+      ensureCaptcha('signup');
+      var token = getCaptchaToken('signup');
+      if (!HCAPTCHA_FALLBACK && !token) { msg('signupError', 'Cochez la case anti-robot puis réessayez.', 'error'); return; }
 
       var btn = document.getElementById('signupBtn');
       btn.disabled = true;
@@ -317,8 +349,9 @@
       window.__supabase.auth.signUp({
         email: email,
         password: password,
-        options: { data: { full_name: name } }
+        options: { data: { full_name: name }, captchaToken: token || undefined }
       }).then(function (res) {
+        resetCaptcha('signup');
         btn.disabled = false;
         btn.textContent = 'Créer mon compte';
         if (res.error) { msg('signupError', frErr(res.error), 'error'); return; }
@@ -344,8 +377,15 @@
       var email = document.getElementById('loginEmail').value.trim();
       if (!email) { msg('authError', 'Saisissez d\'abord votre email ci-dessus.', 'error'); return; }
       if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
-      window.__supabase.auth.resetPasswordForEmail(email, { redirectTo: location.href })
+      ensureCaptcha('login');
+      var token = getCaptchaToken('login');
+      if (!HCAPTCHA_FALLBACK && !token) { msg('authError', 'Cochez la case anti-robot puis réessayez.', 'error'); return; }
+      window.__supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: location.href,
+        captchaToken: token || undefined
+      })
         .then(function (res) {
+          resetCaptcha('login');
           msg('authError', res.error ? frErr(res.error) : 'Lien de réinitialisation envoyé à ' + email, res.error ? 'error' : 'ok');
         });
     });
@@ -379,6 +419,16 @@
   }
 
   if (!CONFIG_OK) document.getElementById('authConfigHint').classList.remove('hidden');
+
+  /* En mode secours (clé hCaptcha absente), on le signale à l'écran
+     plutôt que de laisser le captcha invisible. */
+  if (HCAPTCHA_FALLBACK) {
+    var hint = '<small class="captcha-hint">Anti-robot inactif : l\'administrateur n\'a pas encore ajouté la clé hCaptcha.</small>';
+    var lc = document.getElementById('loginCaptcha');
+    if (lc) { lc.classList.remove('hidden'); lc.innerHTML = hint; }
+    var sc = document.getElementById('signupCaptcha');
+    if (sc) { sc.classList.remove('hidden'); sc.innerHTML = hint; }
+  }
 
   /* ---------- Session ---------- */
   ensureLib(function (ok) {
