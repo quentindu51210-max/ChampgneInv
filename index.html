@@ -495,5 +495,25 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="app.js"></script>
+<script>
+/* Diagnostics visibles : toute erreur JS s'affiche dans le formulaire
+   au lieu de bloquer silencieusement l'application. */
+window.addEventListener('error', function (ev) {
+  try {
+    var el = document.getElementById('authError') || document.getElementById('signupError');
+    if (el) {
+      var file = String(ev.filename || '').split('/').pop();
+      el.textContent = '💥 Erreur script : ' + (ev.message || 'inconnue') +
+        (file && ev.lineno ? ' (' + file + ':' + ev.lineno + ')' : '');
+    }
+  } catch (e) {}
+});
+window.addEventListener('unhandledrejection', function (ev) {
+  try {
+    var el = document.getElementById('authError') || document.getElementById('signupError');
+    if (el) el.textContent = '💥 Erreur interne : ' + String((ev.reason && ev.reason.message) || ev.reason || '?');
+  } catch (e) {}
+});
+</script>
 </body>
 </html>
