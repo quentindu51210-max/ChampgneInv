@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4a1f1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Champagne House - Gestion de Stock</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ ÉCRAN CONNEXION / INSCRIPTION ============ -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">&#127870;</div>
+    <h2>Maison de Champagne</h2>
+    <p class="auth-subtitle">Gestion de stock — partagée entre tous</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-form="login">Connexion</button>
+      <button class="auth-tab" data-form="signup">Inscription</button>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <input type="email" id="loginEmail" class="search-input" placeholder="Adresse email" autocomplete="email">
+      <input type="password" id="loginPassword" class="search-input" placeholder="Mot de passe" autocomplete="current-password">
+      <div id="authError" class="auth-error"></div>
+      <button type="submit" class="btn-primary auth-submit">Se connecter</button>
+      <button type="button" id="btnForgot" class="link-btn">Mot de passe oublié ?</button>
+    </form>
+
+    <form id="signupForm" class="auth-form hidden">
+      <input type="text" id="signupName" class="search-input" placeholder="Nom (ex : Jean)" autocomplete="name">
+      <input type="email" id="signupEmail" class="search-input" placeholder="Adresse email" autocomplete="email">
+      <input type="password" id="signupPassword" class="search-input" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
+      <input type="password" id="signupPassword2" class="search-input" placeholder="Confirmer le mot de passe" autocomplete="new-password">
+      <div id="signupError" class="auth-error"></div>
+
+      <div class="captcha-box">
+        <span id="captchaQuestion" class="captcha-question"></span>
+        <input type="text" id="captchaAnswer" class="search-input captcha-input" inputmode="numeric" placeholder="Résultat *" autocomplete="off">
+        <button type="button" id="btnCaptchaNew" class="link-btn" title="Changer la question">&#128260;</button>
+        <span id="captchaMsg" class="captcha-msg"></span>
+      </div>
+
+      <button type="submit" class="btn-primary auth-submit" id="signupBtn">Créer mon compte</button>
+      <div id="signupStatus" class="auth-status"></div>
+    </form>
+
+    <p id="authConfigHint" class="auth-hint hidden">
+      &#9888; Collez votre URL et votre clé dans le fichier <b>supabase-config.js</b>.
+    </p>
+
+    <div id="diagRow" class="diag-row hidden">
+      <button type="button" id="btnDiag" class="link-btn">&#128269; Diagnostic de connexion</button>
+      <div id="diagOut" class="diag-out"></div>
+    </div>
+
+    <p id="appVersion" class="auth-version">version 8.0</p>
+  </div>
+</div>
+
+<header class="app-header hidden" id="appHeader">
+  <div class="header-inner">
+    <div class="logo">&#127870;</div>
+    <div class="header-titles">
+      <h1>Maison de Champagne</h1>
+      <p>Gestion de stock</p>
+    </div>
+    <div class="header-user hidden" id="headerUser">
+      <span class="user-email" id="userEmail">user</span>
+      <button id="btnLogout" class="logout-btn" title="Se déconnecter">&#128682;</button>
+    </div>
+    <button id="btnNotify" class="notify-btn" title="Activer les notifications">&#128276;</button>
+  </div>
+</header>
+
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="produits">&#127873; Produits</button>
+  <button class="tab-btn" data-tab="marques">&#127868; Marques <span id="marqueCount" class="badge-count"></span></button>
+  <button class="tab-btn" data-tab="etats">&#127991; États <span id="etatCount" class="badge-count"></span></button>
+  <button class="tab-btn" data-tab="alertes">&#9888; Alertes <span id="alertCount" class="badge-count danger"></span></button>
+</nav>
+
+<main>
+
+  <!-- ============ TAB PRODUITS ============ -->
+  <section id="tab-produits" class="tab-content active">
+    <div id="brandTabs" class="brand-tabs"></div>
+
+    <div class="toolbar">
+      <input type="text" id="searchInput" class="search-input" placeholder="Rechercher un produit, une marque, une réf...">
+      <button id="btnAddProduct" class="btn-primary">+ Ajouter un produit</button>
+    </div>
+
+    <div id="stateChips" class="state-chips"></div>
+
+    <div id="productList" class="product-list"></div>
+    <div id="emptyState" class="empty-state hidden">
+      <div class="empty-icon">&#127864;</div>
+      <p>Aucun produit pour le moment.</p>
+    </div>
+  </section>
+
+  <!-- ============ TAB MARQUES ============ -->
+  <section id="tab-marques" class="tab-content">
+    <div class="toolbar">
+      <input type="text" id="newBrandInput" class="search-input" placeholder="Nom de la nouvelle marque (ex : Moët & Chandon)...">
+      <button id="btnAddBrand" class="btn-primary">Ajouter la marque</button>
+    </div>
+    <div id="brandList" class="brand-list"></div>
+  </section>
+
+  <!-- ============ TAB ÉTATS ============ -->
+  <section id="tab-etats" class="tab-content">
+    <div class="alert-info">
+      &#127991; Les états sont des étiquettes libres que vous créez (ex : sur latte, dégorgé, prête à habiller...). Vous les choisissez ensuite sur chaque produit.
+    </div>
+    <div class="toolbar">
+      <input type="text" id="newEtatInput" class="search-input" placeholder="Nouvel état (ex : Prête à habiller)...">
+      <button id="btnAddEtat" class="btn-primary">Ajouter</button>
+    </div>
+    <div id="etatList" class="brand-list"></div>
+  </section>
+
+  <!-- ============ TAB ALERTES ============ -->
+  <section id="tab-alertes" class="tab-content">
+    <div class="alert-info">
+      &#9888; Produits dont le stock est inférieur ou égal au seuil défini.
+    </div>
+    <div id="alertList" class="product-list"></div>
+  </section>
+
+</main>
+
+<!-- ============ MODAL AJOUT / MODIF PRODUIT ============ -->
+<div id="modalProduct" class="modal-overlay hidden">
+  <div class="modal">
+    <h2 id="modalProductTitle">Ajouter un produit</h2>
+    <label class="field-label">Nom du produit / Cuvée</label>
+    <input type="text" id="pName" placeholder="Ex : Brut Réserve, Rosé, Vintage 2015...">
+    <label class="field-label">Marque</label>
+    <select id="pBrand"></select>
+    <label class="field-label">État des bouteilles</label>
+    <select id="pEtat"></select>
+    <div class="field-row">
+      <div class="field-col">
+        <label class="field-label">Quantité initiale</label>
+        <input type="number" id="pQty" min="0" value="0">
+      </div>
+      <div class="field-col">
+        <label class="field-label">Seuil stock faible</label>
+        <input type="number" id="pThreshold" min="0" value="10">
+      </div>
+    </div>
+    <div id="pRefRow" class="ref-row hidden">
+      <label class="field-label">Référence (modifiable)</label>
+      <input type="text" id="pRef">
+    </div>
+    <div class="modal-actions">
+      <button id="btnCancelProduct" class="btn-secondary">Annuler</button>
+      <button id="btnSaveProduct" class="btn-primary">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL QR CODE ============ -->
+<div id="modalQr" class="modal-overlay hidden">
+  <div class="modal modal-qr">
+    <h2 id="qrTitle">Code QR</h2>
+    <div id="qrBox" class="qr-box"></div>
+    <p id="qrRefText" class="qr-ref">REF</p>
+    <p id="qrProductText" class="qr-product"></p>
+    <div class="modal-actions">
+      <button id="btnShareQr" class="btn-secondary">Partager</button>
+      <button id="btnCloseQr" class="btn-primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- ============ DERNIÈRE MISE À JOUR ============ -->
+<div id="lastUpdate" class="last-update on-auth">Aucune mise à jour synchronisée sur cet appareil</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="qrcode.min.js"></script>
+
+<!-- ============ MODULE AUTHENTIFICATION (autonome, ne dépend pas d'app.js) ============ -->
+<script>
+(function () {
+  'use strict';
+
+  var CONFIG_OK = typeof SUPABASE_URL === 'string' &&
+                  SUPABASE_URL.indexOf('supabase.co') > -1 &&
+                  typeof SUPABASE_ANON_KEY === 'string' &&
+                  SUPABASE_ANON_KEY.indexOf('VOTRE') === -1;
+
+  window.__supabase = null;
+
+  function msg(id, text, type) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = type === 'error' ? 'auth-error' : 'auth-status' + (type === 'ok' ? ' ok' : '');
+  }
+
+  function makeError() {
+    if (!CONFIG_OK) return '\u26A0 Supabase non configuré : ouvrez le fichier supabase-config.js et collez-y votre URL et la clé anon public de supabase.com > Settings > API. Puis rechargez la page.';
+    return '\u26A0 La bibliothèque Supabase n\'a pas pu être chargée : vérifiez votre connexion internet puis rechargez.';
+  }
+
+  function ensureLib(cb) {
+    if (window.supabase) return cb(true);
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.onload = function () { cb(!!window.supabase); };
+    s.onerror = function () { cb(false); };
+    document.head.appendChild(s);
+    setTimeout(function () { if (window.supabase) cb(true); }, 12000);
+  }
+
+  function frErr(m) {
+    var str = String(m || 'Erreur inconnue');
+    if (str.indexOf('Invalid login') > -1 || str.indexOf('invalid_credentials') > -1) return 'Email ou mot de passe incorrect.';
+    if (str.indexOf('already registered') > -1) return 'Cet email est déjà inscrit — connectez-vous.';
+    if (str.indexOf('at least 6 characters') > -1) return 'Le mot de passe doit contenir au moins 6 caractères.';
+    if (str.indexOf('Email not confirmed') > -1) return 'Vous devez encore confirmer votre email (lien reçu par email).';
+    if (str.indexOf('Too many requests') > -1 || str.indexOf('rate limit') > -1) return 'Trop de tentatives — patientez un instant.';
+    if (str.indexOf('Failed to fetch') > -1 || str.indexOf('fetch') > -1) return 'Pas de connexion internet. Vérifiez votre réseau.';
+    return str;
+  }
+
+  /* ---------- Onglets ---------- */
+  function switchTab(form) {
+    document.querySelectorAll('.auth-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.form === form);
+    });
+    var ln = document.getElementById('loginForm');
+    var sn = document.getElementById('signupForm');
+    if (ln) ln.classList.toggle('hidden', form !== 'login');
+    if (sn) sn.classList.toggle('hidden', form !== 'signup');
+    if (form === 'signup' && sn) {
+      genCaptcha();
+      sn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+  document.addEventListener('click', function (e) {
+    var tab = e.target.closest ? e.target.closest('.auth-tab') : null;
+    if (tab) switchTab(tab.dataset.form);
+  });
+
+  /* ---------- Captcha ---------- */
+  var captchaA = 0, captchaB = 0;
+  function genCaptcha() {
+    captchaA = 1 + Math.floor(Math.random() * 9);
+    captchaB = 1 + Math.floor(Math.random() * 9);
+    var q = document.getElementById('captchaQuestion');
+    if (q) q.textContent = 'Anti-robot : combien font ' + captchaA + ' + ' + captchaB + ' ?';
+    var a = document.getElementById('captchaAnswer');
+    if (a) a.value = '';
+    var m = document.getElementById('captchaMsg');
+    if (m) m.textContent = '';
+  }
+  var btnNew = document.getElementById('btnCaptchaNew');
+  if (btnNew) btnNew.addEventListener('click', genCaptcha);
+  genCaptcha();
+
+  /* ---------- Connexion ---------- */
+  var loginForm = document.getElementById('loginForm');
+  if (loginForm) {
+    loginForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      msg('authError', '', '');
+      var email = document.getElementById('loginEmail').value.trim();
+      var password = document.getElementById('loginPassword').value;
+      if (!email || !password) { msg('authError', 'Remplissez tous les champs.', 'error'); return; }
+      if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
+      window.__supabase.auth.signInWithPassword({ email: email, password: password })
+        .then(function (res) {
+          if (res.error) msg('authError', frErr(res.error), 'error');
+        });
+    });
+  }
+
+  /* ---------- Inscription ---------- */
+  var signupForm = document.getElementById('signupForm');
+  if (signupForm) {
+    signupForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      msg('signupError', '', '');
+      var name = document.getElementById('signupName').value.trim();
+      var email = document.getElementById('signupEmail').value.trim();
+      var password = document.getElementById('signupPassword').value;
+      var password2 = document.getElementById('signupPassword2').value;
+      var answer = parseInt(document.getElementById('captchaAnswer').value, 10);
+
+      if (!email) { msg('signupError', 'Renseignez votre adresse email.', 'error'); return; }
+      if (password.length < 6) { msg('signupError', 'Le mot de passe doit contenir au moins 6 caractères.', 'error'); return; }
+      if (password !== password2) { msg('signupError', 'Les mots de passe ne correspondent pas.', 'error'); return; }
+      if (isNaN(answer) || answer !== captchaA + captchaB) {
+        msg('signupError', 'Réponse du captcha incorrecte — recommencez.', 'error');
+        genCaptcha();
+        return;
+      }
+      if (!window.__supabase) { msg('signupError', makeError(), 'error'); return; }
+
+      var btn = document.getElementById('signupBtn');
+      btn.disabled = true;
+      btn.textContent = 'Envoi en cours…';
+
+      window.__supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: { data: { full_name: name } }
+      }).then(function (res) {
+        btn.disabled = false;
+        btn.textContent = 'Créer mon compte';
+        if (res.error) { msg('signupError', frErr(res.error), 'error'); return; }
+        if (res.data && res.data.user && !res.data.session) {
+          msg('signupStatus', '✔ Compte créé ! Un lien de confirmation a été envoyé à ' + email + '. Vérifiez aussi vos courriers indésirables, cliquez le lien, puis connectez-vous.', 'ok');
+          msg('signupError', '', '');
+        } else if (res.data && res.data.session) {
+          msg('signupStatus', '✔ Compte créé et connecté !', 'ok');
+          if (window.AppShowSession) window.AppShowSession(res.data.session);
+        }
+      }).catch(function () {
+        btn.disabled = false;
+        btn.textContent = 'Créer mon compte';
+        msg('signupError', 'Erreur réseau — vérifiez votre connexion internet.', 'error');
+      });
+    });
+  }
+
+  /* ---------- Mot de passe oublié ---------- */
+  var btnForgot = document.getElementById('btnForgot');
+  if (btnForgot) {
+    btnForgot.addEventListener('click', function () {
+      var email = document.getElementById('loginEmail').value.trim();
+      if (!email) { msg('authError', 'Saisissez d\'abord votre email ci-dessus.', 'error'); return; }
+      if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
+      window.__supabase.auth.resetPasswordForEmail(email, { redirectTo: location.href })
+        .then(function (res) {
+          msg('authError', res.error ? frErr(res.error) : 'Lien de réinitialisation envoyé à ' + email, res.error ? 'error' : 'ok');
+        });
+    });
+  }
+
+  /* ---------- Déconnexion ---------- */
+  var btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', function () {
+      if (!window.confirm('Se déconnecter ?')) return;
+      if (window.__supabase) window.__supabase.auth.signOut();
+    });
+  }
+
+  /* ---------- Diagnostic ---------- */
+  var btnDiag = document.getElementById('btnDiag');
+  if (btnDiag) {
+    btnDiag.addEventListener('click', function () {
+      var out = document.getElementById('diagOut');
+      out.textContent = 'Test en cours…';
+      var base = String(SUPABASE_URL || '').replace(/\/+$/, '');
+      fetch(base + '/rest/v1/', { headers: { apikey: SUPABASE_ANON_KEY } })
+        .then(function (r) {
+          if (r.ok) out.textContent = '✔ Serveur OK : URL et clé valides.';
+          else if (r.status === 401) out.textContent = '⚠ URL bonne mais clé anon incorrecte.';
+          else if (r.status === 404) out.textContent = '✖ URL du projet incorrecte.';
+          else out.textContent = '⚠ Réponse serveur (' + r.status + '), config probablement OK.';
+        })
+        .catch(function () { out.textContent = '✖ Connexion impossible : vérifiez internet puis l\'URL.'; });
+    });
+  }
+
+  if (!CONFIG_OK) document.getElementById('authConfigHint').classList.remove('hidden');
+
+  /* ---------- Session ---------- */
+  ensureLib(function (ok) {
+    if (ok && CONFIG_OK) {
+      try {
+        window.__supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.__supabase.auth.getSession().then(function (d) {
+          if (d.data && d.data.session) {
+            if (window.AppShowSession) window.AppShowSession(d.data.session);
+            else window.__pendingSession = d.data.session;
+          }
+        });
+        window.__supabase.auth.onAuthStateChange(function (ev, session) {
+          if (ev === 'SIGNED_OUT') {
+            if (window.AppShowSession) window.AppShowSession(null);
+          } else if (session) {
+            if (window.AppShowSession) window.AppShowSession(session);
+            else window.__pendingSession = session;
+          }
+        });
+      } catch (err) { window.__supabase = null; }
+    }
+    var v = document.getElementById('appVersion');
+    if (v) v.textContent = 'version 8.0 — rechargée à ' +
+      new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  });
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+<script src="app.js"></script>
+</body>
+</html>
