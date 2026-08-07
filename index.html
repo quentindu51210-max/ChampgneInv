@@ -328,25 +328,32 @@
       var email = document.getElementById('loginEmail').value.trim();
       var password = document.getElementById('loginPassword').value;
       if (!email || !password) { msg('authError', 'Remplissez tous les champs.', 'error'); return; }
+      // 1) soumission du formulaire
+      console.log('[auth] CLIC Connexion :', email);
       if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
       ensureCaptcha('login');
       var token = getCaptchaToken('login');
       if (!HCAPTCHA_FALLBACK && !token) { msg('authError', 'Cochez la case anti-robot puis réessayez.', 'error'); return; }
+      console.log('[auth] ENVOI signInWithPassword (token captcha: ' + (token ? 'oui' : 'non') + ')');
       window.__supabase.auth.signInWithPassword({
         email: email, password: password,
         options: { captchaToken: token || undefined }
       }).then(function (res) {
+        // 2) le serveur a répondu (quand le nombre de lignes)
         resetCaptcha('login');
+        console.log('[auth] REPONSE recue :', JSON.stringify(res && res.data ? Object.keys(res.data) : 'res sans data'), 'erreur :', res.error ? res.error.status + ' ' + res.error.message : 'AUCUNE');
         if (res.error) {
           if (isRateLimit(res.error)) armCooldown();
-          console.warn('Auth login error:', res.error);
+          console.warn('Err :', res.error);
           msg('authError', frErr(res.error), 'error');
         } else if (res.data && res.data.session) {
-          // Succès : on connecte directement (pas besoin de l'événement)
+          console.log('[auth] SESSION OBTENUE pour :', (res.data.session.user && res.data.session.user.email) || '?');
           if (window.AppShowSession) window.AppShowSession(res.data.session);
           else window.__pendingSession = res.data.session;
-          console.log('Login OK session:',
-            res.data.session.user && res.data.session.user.email);
+        } else {
+          // ni erreur etun parall de session = cas anormal
+          console.warn('[auth] REPONSE SANS ERREUR NI SESSION :', res);
+          msg('authError', 'Réponse inattendue du serveur (essayez dans un instant).', 'error');
         }
       });
     });
