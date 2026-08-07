@@ -299,11 +299,31 @@
     ensureCaptcha('login');
   };
 
+  /* ---------- Anti spam : si Supabase répond 429, on attend ---------- */
+  var cooldownUntil = 0;
+  function armCooldown() { cooldownUntil = Date.now() + 45000; }
+  function cooldownLeft() { return Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000)); }
+  function isRateLimit(err) {
+    if (!err) return false;
+    if (err.status === 429) return true;
+    var s = String(err.message || err.error_description || '');
+    return s.indexOf('Too many requests') > -1 || s.indexOf('rate limit') > -1;
+  }
+  function blockedBy(txtId) {
+    var left = cooldownLeft();
+    if (left > 0) {
+      msg(txtId, 'Trop rapide : réessayez dans ' + left + ' s.', 'error');
+      return true;
+    }
+    return false;
+  }
+
   /* ---------- Connexion ---------- */
   var loginForm = document.getElementById('loginForm');
   if (loginForm) {
     loginForm.addEventListener('submit', function (e) {
       e.preventDefault();
+      if (blockedBy('authError')) return;
       msg('authError', '', '');
       var email = document.getElementById('loginEmail').value.trim();
       var password = document.getElementById('loginPassword').value;
@@ -317,7 +337,11 @@
         options: { captchaToken: token || undefined }
       }).then(function (res) {
         resetCaptcha('login');
-        if (res.error) msg('authError', frErr(res.error), 'error');
+        if (res.error) {
+          if (isRateLimit(res.error)) armCooldown();
+          console.warn('Auth login error:', res.error);
+          msg('authError', frErr(res.error), 'error');
+        }
       });
     });
   }
@@ -327,6 +351,7 @@
   if (signupForm) {
     signupForm.addEventListener('submit', function (e) {
       e.preventDefault();
+      if (blockedBy('signupError')) return;
       msg('signupError', '', '');
       var name = document.getElementById('signupName').value.trim();
       var email = document.getElementById('signupEmail').value.trim();
@@ -354,7 +379,12 @@
         resetCaptcha('signup');
         btn.disabled = false;
         btn.textContent = 'Créer mon compte';
-        if (res.error) { msg('signupError', frErr(res.error), 'error'); return; }
+        if (res.error) {
+          if (isRateLimit(res.error)) armCooldown();
+          console.warn('Auth signup error:', res.error);
+          msg('signupError', frErr(res.error), 'error');
+          return;
+        }
         if (res.data && res.data.user && !res.data.session) {
           msg('signupStatus', '✔ Compte créé ! Un lien de confirmation a été envoyé à ' + email + '. Vérifiez aussi vos courriers indésirables, cliquez le lien, puis connectez-vous.', 'ok');
           msg('signupError', '', '');
@@ -374,6 +404,7 @@
   var btnForgot = document.getElementById('btnForgot');
   if (btnForgot) {
     btnForgot.addEventListener('click', function () {
+      if (blockedBy('authError')) return;
       var email = document.getElementById('loginEmail').value.trim();
       if (!email) { msg('authError', 'Saisissez d\'abord votre email ci-dessus.', 'error'); return; }
       if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
@@ -386,6 +417,7 @@
       })
         .then(function (res) {
           resetCaptcha('login');
+          if (res.error && isRateLimit(res.error)) armCooldown();
           msg('authError', res.error ? frErr(res.error) : 'Lien de réinitialisation envoyé à ' + email, res.error ? 'error' : 'ok');
         });
     });
