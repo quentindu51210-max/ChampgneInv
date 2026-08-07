@@ -150,15 +150,10 @@ main { max-width: 660px; margin: 0 auto; padding: 14px 12px; }
 .auth-status { min-height: 18px; font-size: 13px; font-weight: 600; color: #555; white-space: pre-line; }
 .auth-status.ok { color: var(--ok); }
 
-.captcha-box {
-  display: flex; align-items: center; gap: 8px; margin: 4px 0 2px;
-  background: #fff8e8; border: 1px solid var(--gold); border-radius: 10px; padding: 8px 10px;
-}
-.captcha-question {
-  flex: 1; font-size: 13px; font-weight: 700; color: var(--bordeaux); text-align: left;
-}
-.captcha-input { width: 70px !important; flex: 0 0 70px; text-align: center; padding: 8px !important; }
-.captcha-msg { font-size: 12px; color: var(--danger); min-height: 15px; display: block; margin: 4px 0 0; }
+.h-captcha-row { display: flex; justify-content: center; margin: 4px auto 2px; max-width: 100%; overflow: hidden; }
+.h-captcha-row.hidden { display: none; }
+.h-captcha-row iframe { max-width: 100%; }
+.captcha-hint { font-size: 12px; color: #a0875d; font-style: italic; text-align: center; }
 .link-btn {
   background: none; border: none; color: var(--bordeaux); text-decoration: underline;
   cursor: pointer; font-size: 13px; padding: 6px;
