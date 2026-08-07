@@ -341,6 +341,12 @@
           if (isRateLimit(res.error)) armCooldown();
           console.warn('Auth login error:', res.error);
           msg('authError', frErr(res.error), 'error');
+        } else if (res.data && res.data.session) {
+          // Succès : on connecte directement (pas besoin de l'événement)
+          if (window.AppShowSession) window.AppShowSession(res.data.session);
+          else window.__pendingSession = res.data.session;
+          console.log('Login OK session:',
+            res.data.session.user && res.data.session.user.email);
         }
       });
     });
