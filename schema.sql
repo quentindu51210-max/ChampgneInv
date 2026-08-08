@@ -87,17 +87,39 @@ insert into public.products (id, name, ref, brand_id, type, price, image_url, qt
   ('p223', 'Gin terroir – Pinot noir', 'LC-GP-01', 'b203', 'spiritueux', 78, 'gammes/gin-pinot.jpg', 0, 0, now(), now())
 on conflict (id) do nothing;
 
--- ---------- Sécurité : accès aux utilisateurs connectés ----------
+-- ---------- Sécurité : accès checkliste blanche des membres ----------
+-- AVANT : toute personne connectée (même un compte créé soi-même) pouvait
+-- lire/modifier/supprimer tout le stock. Désormais : uniquement les comptes
+-- listés dans public.app_members (voir securite-fix.sql)
 alter table public.brands enable row level security;
 alter table public.etats enable row level security;
 alter table public.products enable row level security;
 
-create policy "brands_auth_all" on public.brands
-  for all to authenticated using (true) with check (true);
-create policy "etats_auth_all" on public.etats
-  for all to authenticated using (true) with check (true);
-create policy "products_auth_all" on public.products
-  for all to authenticated using (true) with check (true);
+create table if not exists public.app_members (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  added_at timestamptz not null default now()
+);
+alter table public.app_members enable row level security;
+
+create or replace function public.is_app_member()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.app_members where user_id = auth.uid()
+  );
+$$;
+
+create policy "brands_member_all" on public.brands
+  for all using (public.is_app_member()) with check (public.is_app_member());
+create policy "etats_member_all" on public.etats
+  for all using (public.is_app_member()) with check (public.is_app_member());
+create policy "products_member_all" on public.products
+  for all using (public.is_app_member()) with check (public.is_app_member());
 
 -- ---------- Temps réel (optionnel mais recommandé) ----------
 -- supabase.com -> Database -> Replication -> activer "Realtime"

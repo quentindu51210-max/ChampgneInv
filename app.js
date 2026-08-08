@@ -321,8 +321,8 @@ function renderStateChips() {
   let html = '<button class="chip' + (filterEtat === 'all' ? ' active' : '') + '" data-etat="all">Tous</button>';
   html += '<button class="chip' + (filterEtat === 'none' ? ' active' : '') + '" data-etat="none">Sans état</button>';
   html += state.etats.map(e =>
-    '<button class="chip' + (filterEtat === e.id ? ' active' : '') + '" data-etat="' + e.id + '" style="--chip-color:' + e.color + '">' +
-    '<span class="chip-dot" style="background:' + e.color + '"></span>' + escapeHtml(e.name) + '</button>'
+    '<button class="chip' + (filterEtat === e.id ? ' active' : '') + '" data-etat="' + e.id + '" style="--chip-color:' + escapeHtml(e.color) + '">' +
+    '<span class="chip-dot" style="background:' + escapeHtml(e.color) + '"></span>' + escapeHtml(e.name) + '</button>'
   ).join('');
   row.innerHTML = html;
 
@@ -387,9 +387,9 @@ function productCardHtml(p) {
     ${imgHtml}
     <div class="card-head">
       <div>
-        <div class="product-name">${brand.emoji} ${escapeHtml(p.name || '')}</div>
+        <div class="product-name">${escapeHtml(brand.emoji)} ${escapeHtml(p.name || '')}</div>
         <div class="product-brand">Marque : ${escapeHtml(brand.name)}</div>
-        <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>${priceHtml}
+        <span class="type-badge ${ptype.id}">${escapeHtml(ptype.emoji)} ${escapeHtml(ptype.name)}</span>${priceHtml}
       </div>
       <div class="ref-actions">
         <button class="icon-btn" data-action="edit" title="Modifier">&#9998;</button>
@@ -402,7 +402,7 @@ function productCardHtml(p) {
       <button class="icon-btn" data-action="qr" title="Afficher le code QR">&#128310;</button>
     </div>
     <div class="etat-row">
-      <select class="etat-select" data-action="change-etat" style="--etat-color:${currentEtat ? currentEtat.color : '#9b9380'}">
+      <select class="etat-select" data-action="change-etat" style="--etat-color:${currentEtat ? escapeHtml(currentEtat.color) : '#9b9380'}">
         ${etatOptions.join('')}
       </select>
     </div>
@@ -426,7 +426,7 @@ function renderBrands() {
     return `
     <div class="brand-item" data-id="${b.id}">
       <div class="brand-info">
-        <span class="brand-emoji">${b.emoji}</span>
+        <span class="brand-emoji">${escapeHtml(b.emoji)}</span>
         <div>
           <div class="brand-name">${escapeHtml(b.name)}</div>
           <div class="brand-count">${count} produit${plural(count)}</div>
@@ -452,7 +452,7 @@ function renderEtats() {
     return `
     <div class="brand-item" data-id="${e.id}">
       <div class="brand-info">
-        <span class="etat-swatch" style="background:${e.color}"></span>
+        <span class="etat-swatch" style="background:${escapeHtml(e.color)}"></span>
         <div>
           <div class="brand-name">${escapeHtml(e.name)}</div>
           <div class="brand-count">${count} produit${plural(count)} lié${plural(count)}</div>
@@ -484,14 +484,14 @@ function renderAlerts() {
     const brand = brandById(p);
     const ptype = productType(p);
     const etat = etatById(p.etat_id);
-    const etatHtml = etat ? '<span class="etat-badge" style="background:' + etat.color + '">' + escapeHtml(etat.name) + '</span> ' : '';
+    const etatHtml = etat ? '<span class="etat-badge" style="background:' + escapeHtml(etat.color) + '">' + escapeHtml(etat.name) + '</span> ' : '';
     return `
     <div class="product-card low" data-id="${p.id}">
       <div class="card-head">
         <div>
-          <div class="product-name">${brand.emoji} ${escapeHtml(p.name || '')}</div>
+          <div class="product-name">${escapeHtml(brand.emoji)} ${escapeHtml(p.name || '')}</div>
           <div class="product-brand">Marque : ${escapeHtml(brand.name)} — réf. ${escapeHtml(p.ref || '')}</div>
-          <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>
+          <span class="type-badge ${ptype.id}">${escapeHtml(ptype.emoji)} ${escapeHtml(ptype.name)}</span>
         </div>
         <div class="ref-actions">
           <button class="icon-btn" data-action="qr" title="Code QR">&#128310;</button>
