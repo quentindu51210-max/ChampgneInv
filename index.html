@@ -84,6 +84,7 @@
 
   <!-- ============ TAB PRODUITS ============ -->
   <section id="tab-produits" class="tab-content active">
+    <div id="typeTabs" class="brand-tabs"></div>
     <div id="brandTabs" class="brand-tabs"></div>
 
     <div class="toolbar">
@@ -137,6 +138,11 @@
     <h2 id="modalProductTitle">Ajouter un produit</h2>
     <label class="field-label">Nom du produit / Cuvée</label>
     <input type="text" id="pName" placeholder="Ex : Brut Réserve, Rosé, Vintage 2015...">
+    <label class="field-label">Type</label>
+    <select id="pType">
+      <option value="champagne">🍾 Champagne</option>
+      <option value="coteaux">🍷 Coteaux Champenois</option>
+    </select>
     <label class="field-label">Marque</label>
     <select id="pBrand"></select>
     <label class="field-label">État des bouteilles</label>

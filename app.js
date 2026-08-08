@@ -30,8 +30,19 @@ let realtimeChannel = null;
 const TAG_COLORS = ['#2980b9', '#e67e22', '#27ae60', '#8e44ad', '#c0392b', '#16a085', '#d35400', '#7f8c8d'];
 
 /* ---------- Filtres courants ---------- */
+let filterType = 'all';
 let filterBrand = 'all';
 let filterEtat = 'all';
+
+/* ---------- Types de boisson ---------- */
+const DRINK_TYPES = [
+  { id: 'champagne', name: 'Champagne', emoji: '\uD83C\uDF7E' },
+  { id: 'coteaux', name: 'Coteaux Champenois', emoji: '\uD83C\uDF77' }
+];
+
+function productType(p) {
+  return DRINK_TYPES.find(t => t.id === (p.type || 'champagne')) || DRINK_TYPES[0];
+}
 
 /* ---------- Utilitaires ---------- */
 const $ = (sel) => document.querySelector(sel);
@@ -266,6 +277,25 @@ function switchAuthTab(form) {
    RENDU
    ===================================================== */
 
+function renderTypeTabs() {
+  const bar = $('#typeTabs');
+  let html = '<button class="brand-tab' + (filterType === 'all' ? ' active' : '') + '" data-type="all">Tous</button>';
+  html += DRINK_TYPES.map(t => {
+    const count = state.products.filter(p => (p.type || 'champagne') === t.id).length;
+    return '<button class="brand-tab' + (filterType === t.id ? ' active' : '') + '" data-type="' + t.id + '">' +
+           t.emoji + ' ' + escapeHtml(t.name) + ' <span class="tab-count">' + count + '</span></button>';
+  }).join('');
+  bar.innerHTML = html;
+
+  bar.querySelectorAll('.brand-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterType = btn.dataset.type;
+      renderTypeTabs();
+      renderProducts();
+    });
+  });
+}
+
 function renderBrandTabs() {
   const bar = $('#brandTabs');
   let html = '<button class="brand-tab' + (filterBrand === 'all' ? ' active' : '') + '" data-brand="all">Toutes</button>';
@@ -310,6 +340,7 @@ function renderProducts() {
   const query = $('#searchInput').value.trim().toLowerCase();
 
   let items = state.products.slice();
+  if (filterType !== 'all') items = items.filter(p => (p.type || 'champagne') === filterType);
   if (filterBrand !== 'all') items = items.filter(p => p.brand_id === filterBrand);
   if (filterEtat === 'none') items = items.filter(p => !p.etat_id);
   if (filterEtat !== 'all' && filterEtat !== 'none') items = items.filter(p => p.etat_id === filterEtat);
@@ -326,7 +357,7 @@ function renderProducts() {
   empty.classList.remove('hidden');
   if (items.length === 0) {
     list.innerHTML = '';
-    empty.innerHTML = (query || filterBrand !== 'all' || filterEtat !== 'all')
+    empty.innerHTML = (query || filterType !== 'all' || filterBrand !== 'all' || filterEtat !== 'all')
       ? '<div class="empty-icon">&#128269;</div><p>Aucun produit ne correspond à cette recherche.</p>'
       : '<div class="empty-icon">&#127864;</div><p>Aucun produit pour le moment.<br>Cliquez sur « Ajouter un produit » pour commencer.</p>';
     return;
@@ -338,6 +369,7 @@ function renderProducts() {
 
 function productCardHtml(p) {
   const brand = brandById(p);
+  const ptype = productType(p);
   const low = isLowStock(p);
   const currentEtat = etatById(p.etat_id);
   const etatOptions = ['<option value="">Sans état</option>'].concat(
@@ -349,6 +381,7 @@ function productCardHtml(p) {
       <div>
         <div class="product-name">${brand.emoji} ${escapeHtml(p.name || '')}</div>
         <div class="product-brand">Marque : ${escapeHtml(brand.name)}</div>
+        <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>
       </div>
       <div class="ref-actions">
         <button class="icon-btn" data-action="edit" title="Modifier">&#9998;</button>
@@ -441,6 +474,7 @@ function renderAlerts() {
   }
   list.innerHTML = low.map(p => {
     const brand = brandById(p);
+    const ptype = productType(p);
     const etat = etatById(p.etat_id);
     const etatHtml = etat ? '<span class="etat-badge" style="background:' + etat.color + '">' + escapeHtml(etat.name) + '</span> ' : '';
     return `
@@ -449,6 +483,7 @@ function renderAlerts() {
         <div>
           <div class="product-name">${brand.emoji} ${escapeHtml(p.name || '')}</div>
           <div class="product-brand">Marque : ${escapeHtml(brand.name)} — réf. ${escapeHtml(p.ref || '')}</div>
+          <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>
         </div>
         <div class="ref-actions">
           <button class="icon-btn" data-action="qr" title="Code QR">&#128310;</button>
@@ -469,6 +504,7 @@ function renderAlerts() {
 }
 
 function renderAll() {
+  renderTypeTabs();
   renderBrandTabs();
   renderStateChips();
   renderProducts();
@@ -511,6 +547,7 @@ function openProductModal(product) {
   $('#pQty').value = product ? product.qty : 0;
   $('#pThreshold').value = product ? product.threshold : 10;
   $('#pRef').value = product ? product.ref : generateRef();
+  $('#pType').value = product ? (product.type || 'champagne') : 'champagne';
   $('#pRefRow').classList.remove('hidden');
 
   const bSel = $('#pBrand');
@@ -537,6 +574,7 @@ async function saveProduct() {
   const name = $('#pName').value.trim();
   const brandId = $('#pBrand').value;
   const etatId = $('#pEtat').value || null;
+  const type = $('#pType').value || 'champagne';
   const qty = Math.max(0, parseInt($('#pQty').value, 10) || 0);
   const threshold = Math.max(0, parseInt($('#pThreshold').value, 10) || 0);
   const ref = $('#pRef').value.trim().toUpperCase();
@@ -553,13 +591,13 @@ async function saveProduct() {
   let ok = false;
   if (editingProductId) {
     ok = await dbUpdate('products', editingProductId, {
-      name, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
+      name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
       updated_at: new Date().toISOString()
     });
     if (ok) showToast('Produit modifié \u2705');
   } else {
     ok = await dbInsert('products', {
-      id: generateId(), name, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
+      id: generateId(), name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString()
     });
     if (ok) showToast('Produit ajouté \u2705 (réf. ' + ref + ')');
