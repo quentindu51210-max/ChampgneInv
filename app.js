@@ -218,9 +218,11 @@ async function dbDelete(table, id) {
 
 function setAuthUi(session) {
   const logged = !!session;
+  console.log('[ui] setAuthUi session:', logged);
   $('#authScreen').classList.toggle('hidden', logged);
   $('#appHeader').classList.toggle('hidden', !logged);
   document.querySelectorAll('nav.tab-bar, main').forEach(el => el.classList.toggle('hidden', !logged));
+  console.log('[ui] écran connexion masqué :', document.getElementById('authScreen').classList.contains('hidden'));
   const lu = $('#lastUpdate');
   if (logged) {
     lu.classList.add('hidden');
