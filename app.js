@@ -37,7 +37,8 @@ let filterEtat = 'all';
 /* ---------- Types de boisson ---------- */
 const DRINK_TYPES = [
   { id: 'champagne', name: 'Champagne', emoji: '\uD83C\uDF7E' },
-  { id: 'coteaux', name: 'Coteaux Champenois', emoji: '\uD83C\uDF77' }
+  { id: 'coteaux', name: 'Coteaux Champenois', emoji: '\uD83C\uDF77' },
+  { id: 'spiritueux', name: 'Spiritueux', emoji: '\uD83E\uDD43' }
 ];
 
 function productType(p) {
@@ -375,13 +376,20 @@ function productCardHtml(p) {
   const etatOptions = ['<option value="">Sans état</option>'].concat(
     state.etats.map(e => '<option value="' + e.id + '"' + (p.etat_id === e.id ? ' selected' : '') + '>' + escapeHtml(e.name) + '</option>')
   );
+  const imgHtml = p.image_url
+    ? '<div class="card-img"><img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.name || '') + '" loading="lazy" onerror="this.closest(\'.card-img\').style.display=\'none\'"></div>'
+    : '';
+  const priceHtml = (p.price != null && p.price !== '')
+    ? '<div class="card-price">' + Number(p.price).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }) + '</div>'
+    : '';
   return `
   <div class="product-card${low ? ' low' : ''}" data-id="${p.id}">
+    ${imgHtml}
     <div class="card-head">
       <div>
         <div class="product-name">${brand.emoji} ${escapeHtml(p.name || '')}</div>
         <div class="product-brand">Marque : ${escapeHtml(brand.name)}</div>
-        <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>
+        <span class="type-badge ${ptype.id}">${ptype.emoji} ${escapeHtml(ptype.name)}</span>${priceHtml}
       </div>
       <div class="ref-actions">
         <button class="icon-btn" data-action="edit" title="Modifier">&#9998;</button>
@@ -547,6 +555,8 @@ function openProductModal(product) {
   $('#pQty').value = product ? product.qty : 0;
   $('#pThreshold').value = product ? product.threshold : 10;
   $('#pRef').value = product ? product.ref : generateRef();
+  $('#pPrice').value = product ? (product.price ?? 0) : 0;
+  $('#pImageUrl').value = product ? (product.image_url || '') : '';
   $('#pType').value = product ? (product.type || 'champagne') : 'champagne';
   $('#pRefRow').classList.remove('hidden');
 
@@ -578,6 +588,8 @@ async function saveProduct() {
   const qty = Math.max(0, parseInt($('#pQty').value, 10) || 0);
   const threshold = Math.max(0, parseInt($('#pThreshold').value, 10) || 0);
   const ref = $('#pRef').value.trim().toUpperCase();
+  const price = parseFloat($('#pPrice').value) || 0;
+  const imageUrl = $('#pImageUrl').value.trim();
 
   if (!name) { showToast('Veuillez saisir un nom de produit', true); return; }
   if (!brandId) {
@@ -591,13 +603,13 @@ async function saveProduct() {
   let ok = false;
   if (editingProductId) {
     ok = await dbUpdate('products', editingProductId, {
-      name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
+      name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
       updated_at: new Date().toISOString()
     });
     if (ok) showToast('Produit modifié \u2705');
   } else {
     ok = await dbInsert('products', {
-      id: generateId(), name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref,
+      id: generateId(), name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString()
     });
     if (ok) showToast('Produit ajouté \u2705 (réf. ' + ref + ')');
