@@ -348,8 +348,22 @@
           msg('authError', frErr(res.error), 'error');
         } else if (res.data && res.data.session) {
           console.log('[auth] SESSION OBTENUE pour :', (res.data.session.user && res.data.session.user.email) || '?');
-          if (window.AppShowSession) window.AppShowSession(res.data.session);
-          else window.__pendingSession = res.data.session;
+          if (window.AppShowSession) {
+            window.AppShowSession(res.data.session);
+            // Sécurité : si l'écran de connexion n'a pas basculé sous 1,5 s,
+            // on recharge — la session restaurée au démarrage force l'affichage de l'app.
+            setTimeout(function () {
+              var scr = document.getElementById('authScreen');
+              if (scr && !scr.classList.contains('hidden')) {
+                console.warn('[auth] Bascule d\'écran manquée : rechargement de secours');
+                location.reload();
+              }
+            }, 1500);
+          } else {
+            window.__pendingSession = res.data.session;
+            console.warn('[auth] AppShowSession absent : rechargement');
+            location.reload();
+          }
         } else {
           // ni erreur etun parall de session = cas anormal
           console.warn('[auth] REPONSE SANS ERREUR NI SESSION :', res);
