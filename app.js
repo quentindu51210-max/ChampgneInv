@@ -155,7 +155,10 @@ async function loadData() {
     renderAll();
     showLastUpdate();
   } catch (e) {
-    if (e && (e.status === 401 || e.status === 403)) return;
+    if (e && (e.status === 401 || e.status === 403)) {
+      showToast('Accès refusé : votre compte n\'est pas autorisé. Contactez le propriétaire.', true);
+      return;
+    }
     showToast('Erreur de chargement des données', true);
   }
 }
