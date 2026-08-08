@@ -10,11 +10,11 @@
 /* Le client supabase est créé par le module inline (index.html),
    possiblement après le chargement d'app.js : on le récupère à
    la demande (ensureClient) car l'init est asynchrone. */
-let supabase = window.__supabase || null;
+let sbClientInstance = window.__supabase || null;
 
 function ensureClient() {
-  if (!supabase) supabase = window.__supabase || null;
-  return supabase;
+  if (!sbClientInstance) sbClientInstance = window.__supabase || null;
+  return sbClientInstance;
 }
 
 /* ---------- État ---------- */

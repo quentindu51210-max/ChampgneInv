@@ -1,4 +1,4 @@
-const CACHE = 'champagne-stock-v11';
+const CACHE = 'champagne-stock-v13';
 const ASSETS = ['index.html', 'style.css', 'app.js', 'qrcode.min.js', 'supabase-config.js', 'manifest.json', 'icon.svg'];
 
 self.addEventListener('install', e => {
