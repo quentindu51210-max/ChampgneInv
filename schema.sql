@@ -44,11 +44,48 @@ insert into public.brands (id, name, emoji) values
   ('b103', 'Dom Pérignon', '🍇')
 on conflict (id) do nothing;
 
--- ---------- MIGRATION EXISTANTE : colonne type (Champagne / Coteaux Champenois) ----------
+-- ---------- MIGRATION EXISTANTE : colonne type (Champagne / Coteaux Champenois / Spiritueux) ----------
 -- À exécuter aussi sur une base déjà en production (idempotent)
 alter table public.products add column if not exists type text not null default 'champagne';
 alter table public.products drop constraint if exists products_type_check;
-alter table public.products add constraint products_type_check check (type in ('champagne', 'coteaux'));
+alter table public.products add constraint products_type_check check (type in ('champagne', 'coteaux', 'spiritueux'));
+
+-- ---------- MIGRATION 2 : prix et image ----------
+alter table public.products add column if not exists price numeric(10,2) not null default 0;
+alter table public.products add column if not exists image_url text;
+
+-- ---------- Import : Maison Jérôme Lefèvre ----------
+insert into public.brands (id, name, emoji) values
+  ('b201', 'Jérôme Lefèvre', '🍾'),
+  ('b202', 'Champagne Delalot', '🥂'),
+  ('b203', 'La Conspiration', '🥃')
+on conflict (id) do nothing;
+
+insert into public.products (id, name, ref, brand_id, type, price, image_url, qty, threshold, created_at, updated_at) values
+  ('p201', 'Ticket d''entrée — As Tongue Meet Ash', 'MJL-AT-001', 'b201', 'champagne', 666, 'gammes/as-tongue.jpg', 0, 0, now(), now()),
+  ('p202', 'Champagne Delalot Impressions 2016', 'DLT-IMP-16', 'b202', 'champagne', 714, '', 0, 0, now(), now()),
+  ('p203', 'Champagne Delalot Pléiades 2013', 'DLT-PL-13', 'b202', 'champagne', 600, '', 0, 0, now(), now()),
+  ('p204', 'Champagne Jérôme Lefèvre Composition #1', 'MJL-C1-01', 'b201', 'champagne', 330, 'gammes/jlf-comp1.jpg', 0, 0, now(), now()),
+  ('p205', 'Champagne Jérôme Lefèvre Composition #2', 'MJL-C2-01', 'b201', 'champagne', 330, 'gammes/jlf-comp2.jpg', 0, 0, now(), now()),
+  ('p206', 'Champagne Jérôme Lefèvre Rated X', 'MJL-RX-01', 'b201', 'champagne', 714, 'gammes/jlf-ratedx.jpg', 0, 0, now(), now()),
+  ('p207', 'Composition #1', 'MJL-C1-B', 'b201', 'champagne', 330, 'gammes/comp1.jpg', 0, 0, now(), now()),
+  ('p208', 'Composition #2', 'MJL-C2-B', 'b201', 'coteaux', 84, 'gammes/comp2.jpg', 0, 0, now(), now()),
+  ('p209', 'Composition #3', 'MJL-C3-B', 'b201', 'coteaux', 84, 'gammes/comp3.jpg', 0, 0, now(), now()),
+  ('p210', 'Composition #4 (for La Monte)', 'MJL-C4-B', 'b201', 'coteaux', 93, 'gammes/comp4.jpg', 0, 0, now(), now()),
+  ('p211', 'Hunger For Speed', 'MJL-HS-01', 'b201', 'champagne', 162, 'gammes/hunger-for-speed.jpg', 0, 0, now(), now()),
+  ('p212', 'No Title Required (after Robert Ryman)', 'MJL-NT-01', 'b201', 'coteaux', 220, 'gammes/no-title.jpg', 0, 0, now(), now()),
+  ('p213', 'Playing with Fire', 'MJL-PF-01', 'b201', 'champagne', 120, 'gammes/playing-with-fire.jpg', 0, 0, now(), now()),
+  ('p214', 'Playing with Fire 2', 'MJL-PF-02', 'b201', 'champagne', 144, 'gammes/playing-with-fire.jpg', 0, 0, now(), now()),
+  ('p215', 'Rated X', 'MJL-RX-02', 'b201', 'champagne', 120, 'gammes/ratedx.jpg', 0, 0, now(), now()),
+  ('p216', 'Sans titre #1 (Chardonnay on Fire)', 'MJL-ST-01', 'b201', 'coteaux', 492, 'gammes/sans-titre-1.jpg', 0, 0, now(), now()),
+  ('p217', 'Sans titre #2 (Great Meuniers)', 'MJL-ST-02', 'b201', 'coteaux', 280, 'gammes/sans-titre-2.jpg', 0, 0, now(), now()),
+  ('p218', 'Supergroovalasticmacerationstuff', 'MJL-SG-01', 'b201', 'coteaux', 240, 'gammes/supergroovalistic.jpg', 0, 0, now(), now()),
+  ('p219', 'Trankill', 'MJL-TR-01', 'b201', 'coteaux', 82, '', 0, 0, now(), now()),
+  ('p220', 'La conspiration Alcool de malts', 'LC-AM-01', 'b203', 'spiritueux', 66, 'gammes/alcool-malts.jpg', 0, 0, now(), now()),
+  ('p221', 'Gin terroir – Chardonnay', 'LC-GC-01', 'b203', 'spiritueux', 78, 'gammes/gin-chardonnay.jpg', 0, 0, now(), now()),
+  ('p222', 'Gin terroir – Meunier', 'LC-GM-01', 'b203', 'spiritueux', 78, 'gammes/gin-meunier.jpg', 0, 0, now(), now()),
+  ('p223', 'Gin terroir – Pinot noir', 'LC-GP-01', 'b203', 'spiritueux', 78, 'gammes/gin-pinot.jpg', 0, 0, now(), now())
+on conflict (id) do nothing;
 
 -- ---------- Sécurité : accès aux utilisateurs connectés ----------
 alter table public.brands enable row level security;
