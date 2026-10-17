@@ -27,7 +27,7 @@ let state = {
 let editingProductId = null;
 let realtimeChannel = null;
 
-const TAG_COLORS = ['#2980b9', '#e67e22', '#27ae60', '#8e44ad', '#c0392b', '#16a085', '#d35400', '#7f8c8d'];
+const TAG_COLORS = ['#4e745a', '#c1924c', '#a34a3e', '#3f6e8c', '#8a6d3b', '#6f7a70', '#b07a4a', '#2f5d50'];
 
 /* ---------- Filtres courants ---------- */
 let filterType = 'all';
@@ -36,9 +36,9 @@ let filterEtat = 'all';
 
 /* ---------- Types de boisson ---------- */
 const DRINK_TYPES = [
-  { id: 'champagne', name: 'Champagne', emoji: '\uD83C\uDF7E' },
-  { id: 'coteaux', name: 'Coteaux Champenois', emoji: '\uD83C\uDF77' },
-  { id: 'spiritueux', name: 'Spiritueux', emoji: '\uD83E\uDD43' }
+  { id: 'champagne', name: 'Champagne' },
+  { id: 'coteaux', name: 'Coteaux Champenois' },
+  { id: 'spiritueux', name: 'Spiritueux' }
 ];
 
 function productType(p) {
@@ -49,8 +49,31 @@ function productType(p) {
 const $ = (sel) => document.querySelector(sel);
 
 function brandById(product) {
+  if (!product.brand_id) return { id: '', name: 'Sans marque' };
   return state.brands.find(b => b.id === product.brand_id) ||
-         { id: '', name: 'Marque supprimée', emoji: '\uD83C\uDF7E' };
+         { id: '', name: 'Marque supprimée' };
+}
+
+function brandInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(w => /[A-Za-zÀ-ÿ0-9]/.test(w));
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+const ICONS = {
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="1"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+  qr: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3z"/><path d="M20 14v3"/><path d="M14 20h3"/><path d="M20 20h1"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/>',
+  bottle: '<path d="M10 2h4v4l2 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3V2Z"/><path d="M8 13h8"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  alert: '<path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/>'
+};
+
+function icon(name) {
+  return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
 }
 
 function etatById(etatId) {
@@ -111,7 +134,7 @@ function initNotifications() {
   refresh();
   btn.addEventListener('click', () => {
     if (Notification.permission === 'granted') {
-      showToast('Notifications activées \u2705');
+      showToast('Notifications activées');
       return;
     }
     Notification.requestPermission().then(refresh);
@@ -122,7 +145,7 @@ function notifyLowStock(product) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const brand = brandById(product);
   try {
-    new Notification('\u26A0 Stock faible — ' + product.name, {
+    new Notification('Stock faible — ' + product.name, {
       body: 'Il ne reste que ' + product.qty + ' bouteille' + plural(product.qty) + ' (' + brand.name + ') — réf. ' + product.ref,
       icon: 'icon.svg'
     });
@@ -285,7 +308,7 @@ function renderTypeTabs() {
   html += DRINK_TYPES.map(t => {
     const count = state.products.filter(p => (p.type || 'champagne') === t.id).length;
     return '<button class="brand-tab' + (filterType === t.id ? ' active' : '') + '" data-type="' + t.id + '">' +
-           t.emoji + ' ' + escapeHtml(t.name) + ' <span class="tab-count">' + count + '</span></button>';
+           escapeHtml(t.name) + ' <span class="tab-count">' + count + '</span></button>';
   }).join('');
   bar.innerHTML = html;
 
@@ -300,7 +323,12 @@ function renderTypeTabs() {
 
 function renderBrandTabs() {
   const bar = $('#brandTabs');
+  const unassigned = state.products.filter(p => !p.brand_id).length;
+  if (filterBrand === 'none' && unassigned === 0) filterBrand = 'all';
   let html = '<button class="brand-tab' + (filterBrand === 'all' ? ' active' : '') + '" data-brand="all">Toutes</button>';
+  if (unassigned > 0) {
+    html += '<button class="brand-tab' + (filterBrand === 'none' ? ' active' : '') + '" data-brand="none">Sans marque <span class="tab-count">' + unassigned + '</span></button>';
+  }
   html += state.brands.map(b => {
     const count = state.products.filter(p => p.brand_id === b.id).length;
     return '<button class="brand-tab' + (filterBrand === b.id ? ' active' : '') + '" data-brand="' + escapeHtml(b.id) + '">' +
@@ -343,7 +371,8 @@ function renderProducts() {
 
   let items = state.products.slice();
   if (filterType !== 'all') items = items.filter(p => (p.type || 'champagne') === filterType);
-  if (filterBrand !== 'all') items = items.filter(p => p.brand_id === filterBrand);
+  if (filterBrand === 'none') items = items.filter(p => !p.brand_id);
+  else if (filterBrand !== 'all') items = items.filter(p => p.brand_id === filterBrand);
   if (filterEtat === 'none') items = items.filter(p => !p.etat_id);
   if (filterEtat !== 'all' && filterEtat !== 'none') items = items.filter(p => p.etat_id === filterEtat);
   if (query) {
@@ -360,8 +389,8 @@ function renderProducts() {
   if (items.length === 0) {
     list.innerHTML = '';
     empty.innerHTML = (query || filterType !== 'all' || filterBrand !== 'all' || filterEtat !== 'all')
-      ? '<div class="empty-icon">&#128269;</div><p>Aucun produit ne correspond à cette recherche.</p>'
-      : '<div class="empty-icon">&#127864;</div><p>Aucun produit pour le moment.<br>Cliquez sur « Ajouter un produit » pour commencer.</p>';
+      ? '<div class="empty-icon">' + icon('search') + '</div><p>Aucun produit ne correspond à cette recherche.</p>'
+      : '<div class="empty-icon">' + icon('bottle') + '</div><p>Aucun produit pour le moment.<br>Cliquez sur « Ajouter un produit » pour commencer.</p>';
     return;
   }
 
@@ -387,35 +416,35 @@ function productCardHtml(p) {
   <div class="product-card${low ? ' low' : ''}" data-id="${escapeHtml(p.id)}">
     ${imgHtml}
     <div class="card-head">
-      <div>
-        <div class="product-name">${escapeHtml(brand.emoji)} ${escapeHtml(p.name || '')}</div>
-        <div class="product-brand">Marque : ${escapeHtml(brand.name)}</div>
-        <span class="type-badge ${ptype.id}">${escapeHtml(ptype.emoji)} ${escapeHtml(ptype.name)}</span>${priceHtml}
+      <div class="card-head-main">
+        <div class="product-brand">${escapeHtml(brand.name)}</div>
+        <div class="product-name">${escapeHtml(p.name || '')}</div>
+        <span class="type-badge ${ptype.id}">${escapeHtml(ptype.name)}</span>${priceHtml}
       </div>
       <div class="ref-actions">
-        <button class="icon-btn" data-action="edit" title="Modifier">&#9998;</button>
-        <button class="icon-btn" data-action="delete" title="Supprimer">&#128465;</button>
+        <button class="icon-btn" data-action="edit" title="Modifier" aria-label="Modifier">${icon('edit')}</button>
+        <button class="icon-btn" data-action="delete" title="Supprimer" aria-label="Supprimer">${icon('trash')}</button>
       </div>
     </div>
     <div class="ref-row">
       <span class="ref-code">${escapeHtml(p.ref || '')}</span>
-      <button class="icon-btn" data-action="copy" title="Copier la référence">&#128203;</button>
-      <button class="icon-btn" data-action="qr" title="Afficher le code QR">&#128310;</button>
+      <button class="icon-btn" data-action="copy" title="Copier la référence" aria-label="Copier la référence">${icon('copy')}</button>
+      <button class="icon-btn" data-action="qr" title="Afficher le code QR" aria-label="Afficher le code QR">${icon('qr')}</button>
     </div>
     <div class="etat-row">
-      <select class="etat-select" data-action="change-etat" style="--etat-color:${currentEtat ? escapeHtml(currentEtat.color) : '#9b9380'}">
+      <select class="etat-select" data-action="change-etat" style="--etat-color:${currentEtat ? escapeHtml(currentEtat.color) : '#6f7a70'}">
         ${etatOptions.join('')}
       </select>
     </div>
     <div class="qty-row">
       <div class="qty-controls">
-        <button class="qty-btn qty-add" data-action="add" title="Rajouter 1 bouteille">+</button>
+        <button class="qty-btn qty-add" data-action="add" title="Rajouter 1 bouteille" aria-label="Rajouter une bouteille">+</button>
         <span class="qty-val ${low ? 'low' : ''}">${p.qty}</span>
-        <button class="qty-btn qty-sub" data-action="sub" title="Retirer 1 bouteille">&#8722;</button>
+        <button class="qty-btn qty-sub" data-action="sub" title="Retirer 1 bouteille" aria-label="Retirer une bouteille">&minus;</button>
       </div>
-      <span class="qty-units">bouteille${plural(p.qty)}<br><small>seuil : ${p.threshold}</small></span>
+      <span class="qty-units">bouteille${plural(p.qty)}<br><small>seuil ${p.threshold}</small></span>
     </div>
-    ${low ? '<div class="low-badge">&#9888; Stock faible — seuil : ' + p.threshold + '</div>' : ''}
+    ${low ? '<div class="low-badge">Stock faible — seuil : ' + p.threshold + '</div>' : ''}
   </div>`;
 }
 
@@ -427,21 +456,20 @@ function renderBrands() {
     return `
     <div class="brand-item" data-id="${escapeHtml(b.id)}">
       <div class="brand-info">
-        <span class="brand-emoji">${escapeHtml(b.emoji)}</span>
+        <span class="brand-mark">${escapeHtml(brandInitials(b.name))}</span>
         <div>
           <div class="brand-name">${escapeHtml(b.name)}</div>
           <div class="brand-count">${count} produit${plural(count)}</div>
         </div>
       </div>
       <div class="ref-actions">
-        <button class="icon-btn" data-action="edit-brand" title="Changer l'emoji">&#127912;</button>
-        <button class="icon-btn" data-action="delete-brand" title="Supprimer la marque">&#128465;</button>
+        <button class="icon-btn" data-action="delete-brand" title="Supprimer la marque" aria-label="Supprimer la marque">${icon('trash')}</button>
       </div>
     </div>`;
   }).join('');
 
   if (state.brands.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127868;</div><p>Aucune marque.</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('bottle') + '</div><p>Aucune marque.</p></div>';
   }
 }
 
@@ -460,14 +488,14 @@ function renderEtats() {
         </div>
       </div>
       <div class="ref-actions">
-        <button class="icon-btn" data-action="edit-etat" title="Changer la couleur">&#127912;</button>
-        <button class="icon-btn" data-action="delete-etat" title="Supprimer l'état">&#128465;</button>
+        <button class="icon-btn" data-action="edit-etat" title="Changer la couleur" aria-label="Changer la couleur">${icon('edit')}</button>
+        <button class="icon-btn" data-action="delete-etat" title="Supprimer l'état" aria-label="Supprimer l'état">${icon('trash')}</button>
       </div>
     </div>`;
   }).join('');
 
   if (state.etats.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127991;</div><p>Aucun état créé.</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('bottle') + '</div><p>Aucun état créé.</p></div>';
   }
 }
 
@@ -478,36 +506,36 @@ function renderAlerts() {
   $('#alertCount').textContent = count || '';
 
   if (count === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9989;</div><p>Aucun stock faible à signaler.</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">' + icon('check') + '</div><p>Aucun stock faible à signaler.</p></div>';
     return;
   }
   list.innerHTML = low.map(p => {
     const brand = brandById(p);
     const ptype = productType(p);
     const etat = etatById(p.etat_id);
-    const etatHtml = etat ? '<span class="etat-badge" style="background:' + escapeHtml(etat.color) + '">' + escapeHtml(etat.name) + '</span> ' : '';
+    const etatHtml = etat ? '<span class="etat-badge" style="--etat-color:' + escapeHtml(etat.color) + '">' + escapeHtml(etat.name) + '</span> ' : '';
     return `
     <div class="product-card low" data-id="${escapeHtml(p.id)}">
       <div class="card-head">
-        <div>
-          <div class="product-name">${escapeHtml(brand.emoji)} ${escapeHtml(p.name || '')}</div>
-          <div class="product-brand">Marque : ${escapeHtml(brand.name)} — réf. ${escapeHtml(p.ref || '')}</div>
-          <span class="type-badge ${ptype.id}">${escapeHtml(ptype.emoji)} ${escapeHtml(ptype.name)}</span>
+        <div class="card-head-main">
+          <div class="product-brand">${escapeHtml(brand.name)} — réf. ${escapeHtml(p.ref || '')}</div>
+          <div class="product-name">${escapeHtml(p.name || '')}</div>
+          <span class="type-badge ${ptype.id}">${escapeHtml(ptype.name)}</span>
         </div>
         <div class="ref-actions">
-          <button class="icon-btn" data-action="qr" title="Code QR">&#128310;</button>
+          <button class="icon-btn" data-action="qr" title="Code QR" aria-label="Afficher le code QR">${icon('qr')}</button>
         </div>
       </div>
       <div class="etat-row">${etatHtml}</div>
       <div class="qty-row">
         <div class="qty-controls">
-          <button class="qty-btn qty-add" data-action="add">+</button>
+          <button class="qty-btn qty-add" data-action="add" aria-label="Rajouter une bouteille">+</button>
           <span class="qty-val low">${p.qty}</span>
-          <button class="qty-btn qty-sub" data-action="sub">&#8722;</button>
+          <button class="qty-btn qty-sub" data-action="sub" aria-label="Retirer une bouteille">&minus;</button>
         </div>
-        <span class="qty-units">bouteille${plural(p.qty)} <small>(seuil : ${p.threshold})</small></span>
+        <span class="qty-units">bouteille${plural(p.qty)}<br><small>seuil ${p.threshold}</small></span>
       </div>
-      <div class="low-badge">&#9888; Manque ${Math.max(0, p.threshold + 1 - p.qty)} bouteille${plural(Math.max(1, p.threshold + 1 - p.qty))} pour être au-dessus du seuil</div>
+      <div class="low-badge">Manque ${Math.max(0, p.threshold + 1 - p.qty)} bouteille${plural(Math.max(1, p.threshold + 1 - p.qty))} pour être au-dessus du seuil</div>
     </div>`;
   }).join('');
 }
@@ -542,7 +570,7 @@ async function changeQty(productId, delta) {
 
   if (newQty <= p.threshold && !wasLow) {
     notifyLowStock(p);
-    if (delta <= 0) showToast('\u26A0 Stock faible : ' + p.name + ' (' + newQty + ' bouteille' + plural(newQty) + ')', true);
+    if (delta <= 0) showToast('Stock faible : ' + p.name + ' (' + newQty + ' bouteille' + plural(newQty) + ')', true);
   }
 
   await dbUpdate('products', productId, { qty: newQty, updated_at: new Date().toISOString() });
@@ -562,10 +590,10 @@ function openProductModal(product) {
   $('#pRefRow').classList.remove('hidden');
 
   const bSel = $('#pBrand');
-  bSel.innerHTML = state.brands.map(b =>
+  bSel.innerHTML = '<option value="">Sans marque</option>' + state.brands.map(b =>
     '<option value="' + escapeHtml(b.id) + '">' + escapeHtml(b.name) + '</option>'
   ).join('');
-  bSel.value = (product ? product.brand_id : '') || (state.brands.length ? state.brands[0].id : '');
+  bSel.value = product ? (product.brand_id || '') : (state.brands.length ? state.brands[0].id : '');
 
   const eSel = $('#pEtat');
   eSel.innerHTML = '<option value="">Sans état</option>' + state.etats.map(e =>
@@ -593,10 +621,6 @@ async function saveProduct() {
   const imageUrl = $('#pImageUrl').value.trim();
 
   if (!name) { showToast('Veuillez saisir un nom de produit', true); return; }
-  if (!brandId) {
-    showToast('Aucune marque disponible — ajoutez-en une dans l\'onglet Marques', true);
-    return;
-  }
   if (!ref) { showToast('Veuillez saisir une référence', true); return; }
   const refTaken = state.products.some(p => p.ref.toUpperCase() === ref && p.id !== editingProductId);
   if (refTaken) { showToast('Cette référence existe déjà', true); return; }
@@ -604,16 +628,16 @@ async function saveProduct() {
   let ok = false;
   if (editingProductId) {
     ok = await dbUpdate('products', editingProductId, {
-      name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
+      name, type, brand_id: brandId || null, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
       updated_at: new Date().toISOString()
     });
-    if (ok) showToast('Produit modifié \u2705');
+    if (ok) showToast('Produit modifié');
   } else {
     ok = await dbInsert('products', {
-      id: generateId(), name, type, brand_id: brandId, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
+      id: generateId(), name, type, brand_id: brandId || null, etat_id: etatId, qty, threshold, ref, price, image_url: imageUrl,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString()
     });
-    if (ok) showToast('Produit ajouté \u2705 (réf. ' + ref + ')');
+    if (ok) showToast('Produit ajouté (réf. ' + ref + ')');
   }
 
   if (ok) { closeProductModal(); renderAll(); }
@@ -633,7 +657,7 @@ async function changeProductEtat(id, newEtatId) {
   p.etat_id = newEtatId || null;
   renderAll();
   const e = etatById(p.etat_id);
-  showToast(p.name + ' → ' + (e ? e.name : 'sans état') + ' \u2705');
+  showToast(p.name + ' → ' + (e ? e.name : 'sans état'));
   await dbUpdate('products', id, { etat_id: p.etat_id, updated_at: new Date().toISOString() });
 }
 
@@ -646,8 +670,8 @@ async function addBrand() {
     return;
   }
   input.value = '';
-  const ok = await dbInsert('brands', { id: generateId(), name, emoji: '\uD83C\uDF87', created_at: new Date().toISOString() });
-  if (ok) showToast('Marque « ' + name + ' » ajoutée \u2705');
+  const ok = await dbInsert('brands', { id: generateId(), name, emoji: '', created_at: new Date().toISOString() });
+  if (ok) showToast('Marque « ' + name + ' » ajoutée');
   renderAll();
 }
 
@@ -664,16 +688,6 @@ async function deleteBrand(id) {
   showToast('Marque supprimée');
 }
 
-async function changeBrandEmoji(id) {
-  const b = state.brands.find(x => x.id === id);
-  if (!b) return;
-  const emojis = ['\uD83C\uDF87', '\uD83E\uDDEC', '\uD83C\uDF7B', '\uD83E\uDD43', '\uD83C\uDF77', '\uD83C\uDF78', '\uD83E\uDDEE', '\uD83C\uDF79', '\uD83C\uDF45'];
-  const current = emojis.indexOf(b.emoji);
-  b.emoji = emojis[(current + 1) % emojis.length];
-  renderAll();
-  await dbUpdate('brands', id, { emoji: b.emoji });
-}
-
 async function addEtat() {
   const input = $('#newEtatInput');
   const name = input.value.trim();
@@ -685,7 +699,7 @@ async function addEtat() {
   input.value = '';
   const color = TAG_COLORS[state.etats.length % TAG_COLORS.length];
   const ok = await dbInsert('etats', { id: generateId(), name, color });
-  if (ok) showToast('État « ' + name + ' » ajouté \u2705');
+  if (ok) showToast('État « ' + name + ' » ajouté');
   renderAll();
 }
 
@@ -722,7 +736,7 @@ function openQr(product) {
   $('#qrTitle').textContent = 'Code QR — réf. ' + product.ref;
   $('#qrRefText').textContent = product.ref;
   const brand = brandById(product);
-  $('#qrProductText').textContent = brand.emoji + ' ' + product.name +
+  $('#qrProductText').textContent = product.name +
     ' (' + brand.name + ')' + (etat ? ' — ' + etat.name : '');
   $('#modalQr').classList.remove('hidden');
 
@@ -747,7 +761,7 @@ function shareQr() {
   if (navigator.share) {
     navigator.share(shareData).catch(() => {});
   } else if (navigator.clipboard) {
-    navigator.clipboard.writeText('CHAMPAGNE:' + text).then(() => showToast('Référence copiée \u2705'));
+    navigator.clipboard.writeText('CHAMPAGNE:' + text).then(() => showToast('Référence copiée'));
   }
 }
 
@@ -830,7 +844,6 @@ function setupEvents() {
     const id = item ? item.dataset.id : null;
     if (!id) return;
     if (btn.dataset.action === 'delete-brand') deleteBrand(id);
-    if (btn.dataset.action === 'edit-brand') changeBrandEmoji(id);
   });
 
   // Liste états
@@ -847,7 +860,7 @@ function setupEvents() {
 
 function copyRef(p) {
   if (navigator.clipboard) {
-    navigator.clipboard.writeText(p.ref).then(() => showToast('Référence ' + p.ref + ' copiée \u2703'));
+    navigator.clipboard.writeText(p.ref).then(() => showToast('Référence ' + p.ref + ' copiée'));
   } else {
     showToast(p.ref);
   }

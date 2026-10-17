@@ -35,7 +35,8 @@ create table public.products (
 insert into public.etats (id, name, color) values
   ('e101', 'Sur latte', '#2980b9'),
   ('e102', 'Dégorgé', '#e67e22'),
-  ('e103', 'Prête à habiller', '#27ae60')
+  ('e103', 'Prête à habiller', '#27ae60'),
+  ('e104', 'Tiré sur latte', '#4e745a')
 on conflict (id) do nothing;
 
 insert into public.brands (id, name, emoji) values
