@@ -19,6 +19,7 @@ alter table public.app_members enable row level security;
 
 -- Chaque membre ne voit que sa propre entrée (évite la fuite des e-mails)
 drop policy if exists "app_members_select" on public.app_members;
+drop policy if exists "app_members_self" on public.app_members;
 create policy "app_members_self" on public.app_members
   for select using (user_id = auth.uid());
 

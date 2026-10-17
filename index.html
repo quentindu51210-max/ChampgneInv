@@ -36,7 +36,7 @@
     <form id="signupForm" class="auth-form hidden">
       <input type="text" id="signupName" class="search-input" placeholder="Nom (ex : Jean)" autocomplete="name">
       <input type="email" id="signupEmail" class="search-input" placeholder="Adresse email" autocomplete="email">
-      <input type="password" id="signupPassword" class="search-input" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
+      <input type="password" id="signupPassword" class="search-input" placeholder="Mot de passe (8 caractères min.)" autocomplete="new-password">
       <input type="password" id="signupPassword2" class="search-input" placeholder="Confirmer le mot de passe" autocomplete="new-password">
       <div id="signupError" class="auth-error"></div>
       <div id="signupCaptcha" class="h-captcha-row hidden"></div>
@@ -198,7 +198,7 @@
 <!-- ============ DERNIÈRE MISE À JOUR ============ -->
 <div id="lastUpdate" class="last-update on-auth">Aucune mise à jour synchronisée sur cet appareil</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK" crossorigin="anonymous"></script>
 <script src="supabase-config.js"></script>
 <script src="qrcode.min.js"></script>
 <script src="https://hcaptcha.com/1/api.js?render=explicit&onload=hcaptchaOnload" async defer></script>
@@ -230,7 +230,9 @@
   function ensureLib(cb) {
     if (window.supabase) return cb(true);
     var s = document.createElement('script');
-    s.src = 'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.src = 'https://unpkg.com/@supabase/supabase-js@2.118.0/dist/umd/supabase.js';
+    s.integrity = 'sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK';
+    s.crossOrigin = 'anonymous';
     s.onload = function () { cb(!!window.supabase); };
     s.onerror = function () { cb(false); };
     document.head.appendChild(s);
@@ -397,7 +399,7 @@
       var password2 = document.getElementById('signupPassword2').value;
 
       if (!email) { msg('signupError', 'Renseignez votre adresse email.', 'error'); return; }
-      if (password.length < 6) { msg('signupError', 'Le mot de passe doit contenir au moins 6 caractères.', 'error'); return; }
+      if (password.length < 8) { msg('signupError', 'Le mot de passe doit contenir au moins 8 caractères.', 'error'); return; }
       if (password !== password2) { msg('signupError', 'Les mots de passe ne correspondent pas.', 'error'); return; }
       if (!window.__supabase) { msg('signupError', makeError(), 'error'); return; }
 
