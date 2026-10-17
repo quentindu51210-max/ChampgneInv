@@ -76,6 +76,7 @@
       <p>Gestion de stock</p>
     </div>
     <div class="header-user hidden" id="headerUser">
+      <span id="syncStatus" class="sync-status hidden"></span>
       <span class="user-email" id="userEmail">user</span>
       <button id="btnLogout" class="logout-btn" title="Se déconnecter" aria-label="Se déconnecter">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
@@ -90,6 +91,7 @@
 <nav class="tab-bar">
   <button class="tab-btn active" data-tab="produits">Produits</button>
   <button class="tab-btn" data-tab="marques">Marques <span id="marqueCount" class="badge-count"></span></button>
+  <button class="tab-btn" data-tab="types">Types <span id="typeCount" class="badge-count"></span></button>
   <button class="tab-btn" data-tab="etats">États <span id="etatCount" class="badge-count"></span></button>
   <button class="tab-btn" data-tab="alertes">Alertes <span id="alertCount" class="badge-count danger"></span></button>
 </nav>
@@ -102,7 +104,12 @@
     <div id="brandTabs" class="brand-tabs"></div>
 
     <div class="toolbar">
-      <input type="text" id="searchInput" class="search-input" placeholder="Rechercher un produit, une marque, une réf...">
+      <div class="search-wrap">
+        <input type="text" id="searchInput" class="search-input" placeholder="Rechercher un produit, une marque, une réf...">
+        <button id="btnScanQr" class="scan-btn" type="button" title="Scanner un code QR" aria-label="Scanner le code QR d'un produit">
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8" y="8" width="8" height="8"/></svg>
+        </button>
+      </div>
       <button id="btnAddProduct" class="btn-primary">+ Ajouter un produit</button>
     </div>
 
@@ -124,6 +131,18 @@
       <button id="btnAddBrand" class="btn-primary">Ajouter la marque</button>
     </div>
     <div id="brandList" class="brand-list"></div>
+  </section>
+
+  <!-- ============ TAB TYPES ============ -->
+  <section id="tab-types" class="tab-content">
+    <div class="alert-info">
+      Les types classent les produits (Champagne, Coteaux Champenois, Spiritueux...). Un type utilisé par un produit ne peut pas être supprimé.
+    </div>
+    <div class="toolbar">
+      <input type="text" id="newTypeInput" class="search-input" placeholder="Nouveau type (ex : Ratafia)...">
+      <button id="btnAddType" class="btn-primary">Ajouter</button>
+    </div>
+    <div id="typeList" class="brand-list"></div>
   </section>
 
   <!-- ============ TAB ÉTATS ============ -->
@@ -148,49 +167,96 @@
 
 </main>
 
-<!-- ============ MODAL AJOUT / MODIF PRODUIT ============ -->
+<!-- ============ MODAL FICHE / AJOUT / MODIF PRODUIT ============ -->
 <div id="modalProduct" class="modal-overlay hidden">
-  <div class="modal">
+  <div class="modal modal-fiche">
     <h2 id="modalProductTitle">Ajouter un produit</h2>
-    <label class="field-label">Nom du produit / Cuvée</label>
-    <input type="text" id="pName" placeholder="Ex : Brut Réserve, Rosé, Vintage 2015...">
-    <label class="field-label">Type</label>
-    <select id="pType">
-      <option value="champagne">Champagne</option>
-      <option value="coteaux">Coteaux Champenois</option>
-      <option value="spiritueux">Spiritueux</option>
-    </select>
-    <label class="field-label">Marque</label>
-    <select id="pBrand"></select>
-    <label class="field-label">État des bouteilles</label>
-    <select id="pEtat"></select>
-    <div class="field-row">
-      <div class="field-col">
-        <label class="field-label">Quantité initiale</label>
-        <input type="number" id="pQty" min="0" value="0">
+
+    <div id="productView" class="fiche hidden">
+      <div id="ficheImageWrap" class="fiche-image-wrap hidden">
+        <img id="ficheImage" alt="">
       </div>
-      <div class="field-col">
-        <label class="field-label">Seuil stock faible</label>
-        <input type="number" id="pThreshold" min="0" value="10">
+      <div class="product-brand" id="ficheBrand"></div>
+      <div class="fiche-name" id="ficheName"></div>
+      <div class="card-badges" id="ficheBadges"></div>
+
+      <div class="fiche-grid">
+        <div class="fiche-stat">
+          <span class="field-label">Prix</span>
+          <strong id="fichePrice"></strong>
+        </div>
+        <div class="fiche-stat">
+          <span class="field-label">Stock</span>
+          <strong id="ficheStock"></strong>
+        </div>
+        <div class="fiche-stat">
+          <span class="field-label">Seuil</span>
+          <strong id="ficheThreshold"></strong>
+        </div>
+        <div class="fiche-stat">
+          <span class="field-label">Référence</span>
+          <div class="fiche-ref-row">
+            <strong class="fiche-ref" id="ficheRef"></strong>
+            <button id="btnCopyRef" class="icon-btn" title="Copier la référence" aria-label="Copier la référence">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="1"/><path d="M5 15H4a2 2 0 0 1-1-1V4a2 2 0 0 1 1-1h10a2 2 0 0 1 1 1v1"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ficheLow" class="low-badge hidden"></div>
+
+      <div class="fiche-actions">
+        <button id="btnEditProduct" class="btn-primary">Modifier</button>
+        <button id="btnQrProduct" class="btn-secondary">Code QR</button>
+      </div>
+      <div class="fiche-footer">
+        <button id="btnDeleteProduct" class="btn-danger-link">Supprimer ce produit</button>
+        <button id="btnCloseFiche" class="btn-link">Fermer</button>
       </div>
     </div>
-    <div id="pRefRow" class="ref-row hidden">
-      <label class="field-label">Référence (modifiable)</label>
-      <input type="text" id="pRef">
-    </div>
-    <div class="field-row">
-      <div class="field-col">
-        <label class="field-label">Prix (€)</label>
-        <input type="number" id="pPrice" min="0" step="0.01" value="0">
+
+    <div id="productForm" class="hidden">
+      <label class="field-label">Nom du produit / Cuvée</label>
+      <input type="text" id="pName" placeholder="Ex : Brut Réserve, Rosé, Vintage 2015...">
+      <label class="field-label">Type</label>
+      <select id="pType"></select>
+      <label class="field-label">Marque</label>
+      <select id="pBrand"></select>
+      <label class="field-label">État des bouteilles</label>
+      <select id="pEtat"></select>
+      <label class="check-row">
+        <input type="checkbox" id="pMagnum">
+        <span>Magnum (1,5 L)</span>
+      </label>
+      <div class="field-row">
+        <div class="field-col">
+          <label class="field-label">Quantité</label>
+          <input type="number" id="pQty" min="0" value="0">
+        </div>
+        <div class="field-col">
+          <label class="field-label">Seuil stock faible</label>
+          <input type="number" id="pThreshold" min="0" value="10">
+        </div>
       </div>
-      <div class="field-col">
-        <label class="field-label">Image</label>
-        <input type="text" id="pImageUrl" placeholder="URL ou chemin">
+      <div id="pRefRow" class="ref-row hidden">
+        <label class="field-label">Référence (modifiable)</label>
+        <input type="text" id="pRef">
       </div>
-    </div>
-    <div class="modal-actions">
-      <button id="btnCancelProduct" class="btn-secondary">Annuler</button>
-      <button id="btnSaveProduct" class="btn-primary">Enregistrer</button>
+      <div class="field-row">
+        <div class="field-col">
+          <label class="field-label">Prix (€)</label>
+          <input type="number" id="pPrice" min="0" step="0.01" value="0">
+        </div>
+        <div class="field-col">
+          <label class="field-label">Image</label>
+          <input type="text" id="pImageUrl" placeholder="URL ou chemin">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btnCancelProduct" class="btn-secondary">Annuler</button>
+        <button id="btnSaveProduct" class="btn-primary">Enregistrer</button>
+      </div>
     </div>
   </div>
 </div>
@@ -205,6 +271,21 @@
     <div class="modal-actions">
       <button id="btnShareQr" class="btn-secondary">Partager</button>
       <button id="btnCloseQr" class="btn-primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL SCAN QR ============ -->
+<div id="modalScan" class="modal-overlay hidden">
+  <div class="modal modal-scan">
+    <h2>Scanner un code QR</h2>
+    <div class="scan-view">
+      <video id="scanVideo" playsinline muted autoplay></video>
+      <div class="scan-frame" aria-hidden="true"></div>
+    </div>
+    <p id="scanHint" class="scan-hint">Placez le code QR du produit dans le cadre.</p>
+    <div class="modal-actions">
+      <button id="btnCancelScan" class="btn-secondary">Annuler</button>
     </div>
   </div>
 </div>

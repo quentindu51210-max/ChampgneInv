@@ -1,8 +1,14 @@
-const CACHE = 'champagne-stock-v14';
-const ASSETS = ['index.html', 'style.css', 'app.js', 'qrcode.min.js', 'supabase-config.js', 'manifest.json', 'icon.svg'];
+const CACHE = 'champagne-stock-v16';
+const ASSETS = ['index.html', 'style.css', 'app.js', 'qrcode.min.js', 'jsqr.js', 'supabase-config.js', 'manifest.json', 'icon.svg'];
+const EXTERNAL = ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS).then(() =>
+        Promise.all(EXTERNAL.map(url => c.add(url).catch(() => null)))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {

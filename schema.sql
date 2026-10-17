@@ -18,15 +18,24 @@ create table public.etats (
   created_at timestamptz not null default now()
 );
 
+create table public.types (
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+
 create table public.products (
   id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
   name text not null,
   ref text not null unique,
   brand_id text references public.brands(id) on delete restrict,
   etat_id text references public.etats(id) on delete set null,
-  type text not null default 'champagne' check (type in ('champagne', 'coteaux')),
+  type text not null default 'champagne' references public.types(id) on delete restrict,
   qty integer not null default 0 check (qty >= 0),
   threshold integer not null default 10 check (threshold >= 0),
+  price numeric(10,2) not null default 0,
+  image_url text,
+  magnum boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -39,21 +48,44 @@ insert into public.etats (id, name, color) values
   ('e104', 'Tiré sur latte', '#4e745a')
 on conflict (id) do nothing;
 
+insert into public.types (id, name) values
+  ('champagne', 'Champagne'),
+  ('coteaux', 'Coteaux Champenois'),
+  ('spiritueux', 'Spiritueux')
+on conflict (id) do nothing;
+
 insert into public.brands (id, name, emoji) values
   ('b101', 'Moët & Chandon', '🦬'),
   ('b102', 'Veuve Clicquot', '🥂'),
   ('b103', 'Dom Pérignon', '🍇')
 on conflict (id) do nothing;
 
--- ---------- MIGRATION EXISTANTE : colonne type (Champagne / Coteaux Champenois / Spiritueux) ----------
--- À exécuter aussi sur une base déjà en production (idempotent)
-alter table public.products add column if not exists type text not null default 'champagne';
-alter table public.products drop constraint if exists products_type_check;
-alter table public.products add constraint products_type_check check (type in ('champagne', 'coteaux', 'spiritueux'));
-
 -- ---------- MIGRATION 2 : prix et image ----------
 alter table public.products add column if not exists price numeric(10,2) not null default 0;
 alter table public.products add column if not exists image_url text;
+
+-- ---------- MIGRATION 3 : format magnum ----------
+alter table public.products add column if not exists magnum boolean not null default false;
+
+-- ---------- MIGRATION 4 : types éditables ----------
+create table if not exists public.types (
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
+  name text not null,
+  created_at timestamptz not null default now()
+);
+insert into public.types (id, name) values
+  ('champagne', 'Champagne'),
+  ('coteaux', 'Coteaux Champenois'),
+  ('spiritueux', 'Spiritueux')
+on conflict (id) do nothing;
+alter table public.types enable row level security;
+
+-- colonne type + clé étrangère vers types (remplace l'ancienne contrainte check)
+alter table public.products add column if not exists type text not null default 'champagne';
+alter table public.products drop constraint if exists products_type_check;
+alter table public.products drop constraint if exists products_type_fkey;
+alter table public.products add constraint products_type_fkey
+  foreign key (type) references public.types(id) on delete restrict;
 
 -- ---------- Import : Maison Jérôme Lefèvre ----------
 insert into public.brands (id, name, emoji) values
@@ -94,6 +126,7 @@ on conflict (id) do nothing;
 -- listés dans public.app_members (voir securite-fix.sql)
 alter table public.brands enable row level security;
 alter table public.etats enable row level security;
+alter table public.types enable row level security;
 alter table public.products enable row level security;
 
 create table if not exists public.app_members (
@@ -119,10 +152,12 @@ create policy "brands_member_all" on public.brands
   for all using (public.is_app_member()) with check (public.is_app_member());
 create policy "etats_member_all" on public.etats
   for all using (public.is_app_member()) with check (public.is_app_member());
+create policy "types_member_all" on public.types
+  for all using (public.is_app_member()) with check (public.is_app_member());
 create policy "products_member_all" on public.products
   for all using (public.is_app_member()) with check (public.is_app_member());
 
 -- ---------- Temps réel (optionnel mais recommandé) ----------
 -- supabase.com -> Database -> Replication -> activer "Realtime"
--- sur les tables : brands, etats, products
+-- sur les tables : brands, etats, types, products
 -- (pour que chaque téléphone voie les changements en direct)
