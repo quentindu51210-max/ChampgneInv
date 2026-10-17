@@ -345,7 +345,6 @@
       var password = document.getElementById('loginPassword').value;
       if (!email || !password) { msg('authError', 'Remplissez tous les champs.', 'error'); return; }
       // 1) soumission du formulaire
-      console.log('[auth] CLIC Connexion :', email);
       if (!window.__supabase) { msg('authError', makeError(), 'error'); return; }
       ensureCaptcha('login');
       var token = getCaptchaToken('login');
@@ -357,13 +356,10 @@
       }).then(function (res) {
         // 2) le serveur a répondu (quand le nombre de lignes)
         resetCaptcha('login');
-        console.log('[auth] REPONSE recue :', JSON.stringify(res && res.data ? Object.keys(res.data) : 'res sans data'), 'erreur :', res.error ? res.error.status + ' ' + res.error.message : 'AUCUNE');
         if (res.error) {
           if (isRateLimit(res.error)) armCooldown();
-          console.warn('Err :', res.error);
           msg('authError', frErr(res.error), 'error');
         } else if (res.data && res.data.session) {
-          console.log('[auth] SESSION OBTENUE pour :', (res.data.session.user && res.data.session.user.email) || '?');
           if (window.AppShowSession) {
             window.AppShowSession(res.data.session);
             // Sécurité : si l'écran de connexion n'a pas basculé sous 1,5 s,
@@ -382,7 +378,6 @@
           }
         } else {
           // ni erreur etun parall de session = cas anormal
-          console.warn('[auth] REPONSE SANS ERREUR NI SESSION :', res);
           msg('authError', 'Réponse inattendue du serveur (essayez dans un instant).', 'error');
         }
       });
@@ -424,7 +419,6 @@
         btn.textContent = 'Créer mon compte';
         if (res.error) {
           if (isRateLimit(res.error)) armCooldown();
-          console.warn('Auth signup error:', res.error);
           msg('signupError', frErr(res.error), 'error');
           return;
         }
@@ -455,7 +449,7 @@
       var token = getCaptchaToken('login');
       if (!HCAPTCHA_FALLBACK && !token) { msg('authError', 'Cochez la case anti-robot puis réessayez.', 'error'); return; }
       window.__supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: location.href,
+        redirectTo: location.origin + location.pathname,
         captchaToken: token || undefined
       })
         .then(function (res) {

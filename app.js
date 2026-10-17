@@ -233,11 +233,9 @@ async function dbDelete(table, id) {
 
 function setAuthUi(session) {
   const logged = !!session;
-  console.log('[ui] setAuthUi session:', logged);
   $('#authScreen').classList.toggle('hidden', logged);
   $('#appHeader').classList.toggle('hidden', !logged);
   document.querySelectorAll('nav.tab-bar, main').forEach(el => el.classList.toggle('hidden', !logged));
-  console.log('[ui] écran connexion masqué :', document.getElementById('authScreen').classList.contains('hidden'));
   const lu = $('#lastUpdate');
   if (logged) {
     lu.classList.add('hidden');
@@ -305,7 +303,7 @@ function renderBrandTabs() {
   let html = '<button class="brand-tab' + (filterBrand === 'all' ? ' active' : '') + '" data-brand="all">Toutes</button>';
   html += state.brands.map(b => {
     const count = state.products.filter(p => p.brand_id === b.id).length;
-    return '<button class="brand-tab' + (filterBrand === b.id ? ' active' : '') + '" data-brand="' + b.id + '">' +
+    return '<button class="brand-tab' + (filterBrand === b.id ? ' active' : '') + '" data-brand="' + escapeHtml(b.id) + '">' +
            escapeHtml(b.name) + ' <span class="tab-count">' + count + '</span></button>';
   }).join('');
   bar.innerHTML = html;
@@ -324,7 +322,7 @@ function renderStateChips() {
   let html = '<button class="chip' + (filterEtat === 'all' ? ' active' : '') + '" data-etat="all">Tous</button>';
   html += '<button class="chip' + (filterEtat === 'none' ? ' active' : '') + '" data-etat="none">Sans état</button>';
   html += state.etats.map(e =>
-    '<button class="chip' + (filterEtat === e.id ? ' active' : '') + '" data-etat="' + e.id + '" style="--chip-color:' + escapeHtml(e.color) + '">' +
+    '<button class="chip' + (filterEtat === e.id ? ' active' : '') + '" data-etat="' + escapeHtml(e.id) + '" style="--chip-color:' + escapeHtml(e.color) + '">' +
     '<span class="chip-dot" style="background:' + escapeHtml(e.color) + '"></span>' + escapeHtml(e.name) + '</button>'
   ).join('');
   row.innerHTML = html;
@@ -377,7 +375,7 @@ function productCardHtml(p) {
   const low = isLowStock(p);
   const currentEtat = etatById(p.etat_id);
   const etatOptions = ['<option value="">Sans état</option>'].concat(
-    state.etats.map(e => '<option value="' + e.id + '"' + (p.etat_id === e.id ? ' selected' : '') + '>' + escapeHtml(e.name) + '</option>')
+    state.etats.map(e => '<option value="' + escapeHtml(e.id) + '"' + (p.etat_id === e.id ? ' selected' : '') + '>' + escapeHtml(e.name) + '</option>')
   );
   const imgHtml = p.image_url
     ? '<div class="card-img"><img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.name || '') + '" loading="lazy" onerror="this.closest(\'.card-img\').style.display=\'none\'"></div>'
@@ -386,7 +384,7 @@ function productCardHtml(p) {
     ? '<div class="card-price">' + Number(p.price).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }) + '</div>'
     : '';
   return `
-  <div class="product-card${low ? ' low' : ''}" data-id="${p.id}">
+  <div class="product-card${low ? ' low' : ''}" data-id="${escapeHtml(p.id)}">
     ${imgHtml}
     <div class="card-head">
       <div>
@@ -427,7 +425,7 @@ function renderBrands() {
   list.innerHTML = state.brands.map(b => {
     const count = state.products.filter(p => p.brand_id === b.id).length;
     return `
-    <div class="brand-item" data-id="${b.id}">
+    <div class="brand-item" data-id="${escapeHtml(b.id)}">
       <div class="brand-info">
         <span class="brand-emoji">${escapeHtml(b.emoji)}</span>
         <div>
@@ -453,7 +451,7 @@ function renderEtats() {
   list.innerHTML = state.etats.map(e => {
     const count = state.products.filter(p => p.etat_id === e.id).length;
     return `
-    <div class="brand-item" data-id="${e.id}">
+    <div class="brand-item" data-id="${escapeHtml(e.id)}">
       <div class="brand-info">
         <span class="etat-swatch" style="background:${escapeHtml(e.color)}"></span>
         <div>
@@ -489,7 +487,7 @@ function renderAlerts() {
     const etat = etatById(p.etat_id);
     const etatHtml = etat ? '<span class="etat-badge" style="background:' + escapeHtml(etat.color) + '">' + escapeHtml(etat.name) + '</span> ' : '';
     return `
-    <div class="product-card low" data-id="${p.id}">
+    <div class="product-card low" data-id="${escapeHtml(p.id)}">
       <div class="card-head">
         <div>
           <div class="product-name">${escapeHtml(brand.emoji)} ${escapeHtml(p.name || '')}</div>
@@ -565,13 +563,13 @@ function openProductModal(product) {
 
   const bSel = $('#pBrand');
   bSel.innerHTML = state.brands.map(b =>
-    '<option value="' + b.id + '">' + escapeHtml(b.name) + '</option>'
+    '<option value="' + escapeHtml(b.id) + '">' + escapeHtml(b.name) + '</option>'
   ).join('');
   bSel.value = (product ? product.brand_id : '') || (state.brands.length ? state.brands[0].id : '');
 
   const eSel = $('#pEtat');
   eSel.innerHTML = '<option value="">Sans état</option>' + state.etats.map(e =>
-    '<option value="' + e.id + '">' + escapeHtml(e.name) + '</option>'
+    '<option value="' + escapeHtml(e.id) + '">' + escapeHtml(e.name) + '</option>'
   ).join('');
   eSel.value = product ? (product.etat_id || '') : '';
 

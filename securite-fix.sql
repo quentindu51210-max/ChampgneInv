@@ -17,11 +17,10 @@ create table if not exists public.app_members (
 
 alter table public.app_members enable row level security;
 
--- Un membre peut voir la liste des autres membres (pas indispensable)
-create policy "app_members_select" on public.app_members
-  for select using (
-    exists (select 1 from public.app_members m where m.user_id = auth.uid())
-  );
+-- Chaque membre ne voit que sa propre entrée (évite la fuite des e-mails)
+drop policy if exists "app_members_select" on public.app_members;
+create policy "app_members_self" on public.app_members
+  for select using (user_id = auth.uid());
 
 -- --------------------------------------------------
 -- 2) Fonction d'autorisation utilisée par les tables
@@ -45,6 +44,9 @@ $$;
 drop policy if exists "brands_auth_all" on public.brands;
 drop policy if exists "etats_auth_all" on public.etats;
 drop policy if exists "products_auth_all" on public.products;
+drop policy if exists "brands_member_all" on public.brands;
+drop policy if exists "etats_member_all" on public.etats;
+drop policy if exists "products_member_all" on public.products;
 
 create policy "brands_member_all" on public.brands
   for all using (public.is_app_member()) with check (public.is_app_member());
@@ -52,6 +54,17 @@ create policy "etats_member_all" on public.etats
   for all using (public.is_app_member()) with check (public.is_app_member());
 create policy "products_member_all" on public.products
   for all using (public.is_app_member()) with check (public.is_app_member());
+
+-- --------------------------------------------------
+-- 3bis) Défense en profondeur : format des identifiants
+--       (empêche l'injection HTML/XSS via les id)
+-- --------------------------------------------------
+alter table public.brands   drop constraint if exists brands_id_format;
+alter table public.etats    drop constraint if exists etats_id_format;
+alter table public.products drop constraint if exists products_id_format;
+alter table public.brands   add constraint brands_id_format   check (id ~ '^[A-Za-z0-9_-]{1,64}$');
+alter table public.etats    add constraint etats_id_format    check (id ~ '^[A-Za-z0-9_-]{1,64}$');
+alter table public.products add constraint products_id_format check (id ~ '^[A-Za-z0-9_-]{1,64}$');
 
 -- --------------------------------------------------
 -- 4) Ajouter vos comptes à la liste blanche

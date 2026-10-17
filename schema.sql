@@ -5,21 +5,21 @@
 
 -- ---------- Tables ----------
 create table public.brands (
-  id text primary key,
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
   name text not null,
   emoji text not null default '🥂',
   created_at timestamptz not null default now()
 );
 
 create table public.etats (
-  id text primary key,
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
   name text not null,
   color text not null default '#2980b9',
   created_at timestamptz not null default now()
 );
 
 create table public.products (
-  id text primary key,
+  id text primary key check (id ~ '^[A-Za-z0-9_-]{1,64}$'),
   name text not null,
   ref text not null unique,
   brand_id text references public.brands(id) on delete restrict,
