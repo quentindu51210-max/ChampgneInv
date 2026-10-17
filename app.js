@@ -530,6 +530,7 @@ function switchAuthTab(form) {
 
 function renderTypeTabs() {
   const bar = $('#typeTabs');
+  if (!bar) return;
   if (filterType !== 'all' && !state.types.some(t => t.id === filterType)) filterType = 'all';
   let html = '<button class="brand-tab' + (filterType === 'all' ? ' active' : '') + '" data-type="all">Tous</button>';
   html += state.types.map(t => {
@@ -726,7 +727,9 @@ function renderEtats() {
 
 function renderTypes() {
   const list = $('#typeList');
-  $('#typeCount').textContent = state.types.length;
+  if (!list) return;
+  const countEl = $('#typeCount');
+  if (countEl) countEl.textContent = state.types.length;
   list.innerHTML = state.types.map(t => {
     const count = state.products.filter(p => (p.type || 'champagne') === t.id).length;
     return `
@@ -804,8 +807,8 @@ async function changeQty(productId, delta) {
 }
 
 function openProductModal(product) {
-  if (!product) {
-    openProductForm(null);
+  if (!product || !$('#productView')) {
+    openProductForm(product);
     return;
   }
   viewingProductId = product.id;
@@ -884,7 +887,8 @@ function openProductForm(product) {
   $('#pRef').value = product ? product.ref : generateRef();
   $('#pPrice').value = product ? (product.price ?? 0) : 0;
   $('#pImageUrl').value = product ? (product.image_url || '') : '';
-  $('#pMagnum').checked = !!(product && product.magnum);
+  const magnumEl = $('#pMagnum');
+  if (magnumEl) magnumEl.checked = !!(product && product.magnum);
   $('#pRefRow').classList.remove('hidden');
 
   const tSel = $('#pType');
@@ -938,7 +942,7 @@ async function saveProduct() {
   const ref = $('#pRef').value.trim().toUpperCase();
   const price = parseFloat($('#pPrice').value) || 0;
   const imageUrl = $('#pImageUrl').value.trim();
-  const magnum = $('#pMagnum').checked;
+  const magnum = $('#pMagnum') ? $('#pMagnum').checked : false;
 
   if (!name) { showToast('Veuillez saisir un nom de produit', true); return; }
   if (!ref) { showToast('Veuillez saisir une référence', true); return; }
@@ -1273,12 +1277,15 @@ function setupEvents() {
   $('#searchInput').addEventListener('input', renderProducts);
 
   // Scan QR
-  $('#btnScanQr').addEventListener('click', openScan);
-  $('#btnCancelScan').addEventListener('click', closeScan);
-  $('#modalScan').addEventListener('click', e => { if (e.target === e.currentTarget) closeScan(); });
+  if ($('#btnScanQr')) {
+    $('#btnScanQr').addEventListener('click', openScan);
+    $('#btnCancelScan').addEventListener('click', closeScan);
+    $('#modalScan').addEventListener('click', e => { if (e.target === e.currentTarget) closeScan(); });
+  }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!$('#modalScan').classList.contains('hidden')) closeScan();
+    const scanModal = $('#modalScan');
+    if (scanModal && !scanModal.classList.contains('hidden')) closeScan();
     else if (!$('#modalProduct').classList.contains('hidden')) closeProductModal();
   });
 
@@ -1288,23 +1295,25 @@ function setupEvents() {
   // Fiche produit
   $('#btnCancelProduct').addEventListener('click', cancelProductForm);
   $('#btnSaveProduct').addEventListener('click', saveProduct);
-  $('#btnEditProduct').addEventListener('click', () => {
-    const p = state.products.find(x => x.id === viewingProductId);
-    if (p) openProductForm(p);
-  });
-  $('#btnQrProduct').addEventListener('click', () => {
-    const p = state.products.find(x => x.id === viewingProductId);
-    if (p) openQr(p);
-  });
-  $('#btnCopyRef').addEventListener('click', () => {
-    const p = state.products.find(x => x.id === viewingProductId);
-    if (p) copyRef(p);
-  });
-  $('#btnDeleteProduct').addEventListener('click', () => {
-    if (viewingProductId) deleteProduct(viewingProductId);
-  });
-  $('#btnCloseFiche').addEventListener('click', closeProductModal);
-  $('#ficheImage').addEventListener('error', () => $('#ficheImageWrap').classList.add('hidden'));
+  if ($('#productView')) {
+    $('#btnEditProduct').addEventListener('click', () => {
+      const p = state.products.find(x => x.id === viewingProductId);
+      if (p) openProductForm(p);
+    });
+    $('#btnQrProduct').addEventListener('click', () => {
+      const p = state.products.find(x => x.id === viewingProductId);
+      if (p) openQr(p);
+    });
+    $('#btnCopyRef').addEventListener('click', () => {
+      const p = state.products.find(x => x.id === viewingProductId);
+      if (p) copyRef(p);
+    });
+    $('#btnDeleteProduct').addEventListener('click', () => {
+      if (viewingProductId) deleteProduct(viewingProductId);
+    });
+    $('#btnCloseFiche').addEventListener('click', closeProductModal);
+    $('#ficheImage').addEventListener('error', () => $('#ficheImageWrap').classList.add('hidden'));
+  }
   $('#modalProduct').addEventListener('click', e => { if (e.target === e.currentTarget) closeProductModal(); });
 
   // Modal QR
@@ -1317,8 +1326,10 @@ function setupEvents() {
   $('#newBrandInput').addEventListener('keydown', e => { if (e.key === 'Enter') addBrand(); });
 
   // Types
-  $('#btnAddType').addEventListener('click', addType);
-  $('#newTypeInput').addEventListener('keydown', e => { if (e.key === 'Enter') addType(); });
+  if ($('#btnAddType')) {
+    $('#btnAddType').addEventListener('click', addType);
+    $('#newTypeInput').addEventListener('keydown', e => { if (e.key === 'Enter') addType(); });
+  }
 
   // États
   $('#btnAddEtat').addEventListener('click', addEtat);
@@ -1352,14 +1363,16 @@ function setupEvents() {
   });
 
   // Liste types
-  $('#typeList').addEventListener('click', e => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const item = e.target.closest('.brand-item');
-    const id = item ? item.dataset.id : null;
-    if (!id) return;
-    if (btn.dataset.action === 'delete-type') deleteType(id);
-  });
+  if ($('#typeList')) {
+    $('#typeList').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const item = e.target.closest('.brand-item');
+      const id = item ? item.dataset.id : null;
+      if (!id) return;
+      if (btn.dataset.action === 'delete-type') deleteType(id);
+    });
+  }
 
   // Liste états
   $('#etatList').addEventListener('click', e => {

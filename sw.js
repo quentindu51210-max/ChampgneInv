@@ -1,4 +1,4 @@
-const CACHE = 'champagne-stock-v16';
+const CACHE = 'champagne-stock-v17';
 const ASSETS = ['index.html', 'style.css', 'app.js', 'qrcode.min.js', 'jsqr.js', 'supabase-config.js', 'manifest.json', 'icon.svg'];
 const EXTERNAL = ['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js'];
 
@@ -26,9 +26,9 @@ self.addEventListener('fetch', e => {
   // Jamais mettre en cache les API Supabase (les données doivent rester fraîches)
   if (url.hostname.includes('supabase.co')) return;
 
-  // Fichiers "cœur" : réseau d'abord (toujours la dernière version en ligne),
+  // Fichiers "cœur" et pages : réseau d'abord (toujours la dernière version en ligne),
   // puis le cache si hors connexion.
-  if (isCore(url.pathname)) {
+  if (e.request.mode === 'navigate' || isCore(url.pathname)) {
     e.respondWith(
       fetch(e.request).then(res => {
         const copy = res.clone();
